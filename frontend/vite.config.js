@@ -1,7 +1,16 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite';
 
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
+export default defineConfig(async () => {
+  let reactPlugin = null;
+  try {
+    const mod = await import('@vitejs/plugin-react');
+    reactPlugin = mod.default;
+  } catch (e) {
+    // plugin not installed; start without it
+  }
+  return {
+    plugins: reactPlugin ? [reactPlugin()] : [],
+    server: { port: 5173 }
+  };
+});
+

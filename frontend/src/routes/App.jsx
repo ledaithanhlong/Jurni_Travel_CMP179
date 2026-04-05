@@ -32,10 +32,33 @@ import TeamPage from '../pages/TeamPage.jsx';
 
 const NavUserSection = () => {
   const { user } = useUser();
-  
-  // Danh sách email Admin - Bạn có thể thêm email của mình vào đây
-  const adminEmails = ['lucaslee050304@gmail.com', 'tuitennam77@gmail.com'];
-  const isAdmin = user && adminEmails.includes(user.primaryEmailAddress?.emailAddress);
+  const { getToken } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  useEffect(() => {
+    const checkRole = async () => {
+      if (user) {
+        try {
+          const token = await getToken();
+          const res = await axios.get(`${API_URL}/users/me`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.data?.user?.role === 'admin') {
+            setIsAdmin(true);
+          }
+        } catch (error) {
+          console.error("Lỗi khi kiểm tra quyền:", error);
+          // Fallback an toàn nếu API lỗi
+          const adminEmails = ['lucaslee050304@gmail.com', 'tuitennam77@gmail.com'];
+          if (adminEmails.includes(user.primaryEmailAddress?.emailAddress)) {
+             setIsAdmin(true);
+          }
+        }
+      }
+    };
+    checkRole();
+  }, [user, getToken, API_URL]);
 
   return (
     <>

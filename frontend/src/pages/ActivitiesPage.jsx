@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { sampleActivities } from '../data/mockData';
 import { ActivityCard } from '../components/ServiceCards';
+import { useAuth } from '@clerk/clerk-react';
 
 import {
   IconUsers, IconActivity, IconActivityLarge, IconShield,
@@ -24,7 +25,8 @@ export default function ActivitiesPage() {
   const load = async () => {
     try {
       const res = await axios.get(`${API}/activities`);
-      setRows(res.data || []);
+      const dataList = res.data?.data || res.data || [];
+      setRows(dataList);
 
       // If ID in URL, auto-select that activity
       if (id && res.data) {

@@ -51,7 +51,8 @@ export default function AdminActivities() {
   const loadActivities = async () => {
     try {
       const res = await axios.get(`${API}/activities`);
-      setActivities(res.data || []);
+      const dataList = res.data?.data || res.data || [];
+      setActivities(dataList);
     } catch (error) {
       console.error('Error loading activities:', error);
     } finally {

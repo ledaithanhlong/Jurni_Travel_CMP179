@@ -28,6 +28,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api', indexRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/tours', toursRouter);
+app.use('/api/activities', toursRouter); // Alias for frontend
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/admin', adminRouter);
 

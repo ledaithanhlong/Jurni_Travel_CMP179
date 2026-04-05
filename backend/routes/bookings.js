@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const bookingController = require('../controllers/bookingController');
-const { requireAuth } = require('../middlewares/auth');
-const { authorize } = require('../middlewares/authorize');
+const { requireAuth, authorize } = require('../middlewares/auth');
 
 // Protected routes for users
 router.post('/', requireAuth, bookingController.createBooking);

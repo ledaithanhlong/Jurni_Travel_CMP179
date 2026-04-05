@@ -1,14 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const Tour = require('../models/Tour');
-const { requireAuth } = require('../middlewares/auth');
-const { authorize } = require('../middlewares/authorize');
+const { requireAuth, authorize } = require('../middlewares/auth');
 
-// Public route to get all tours
 router.get('/', async (req, res) => {
   try {
     const tours = await Tour.find();
-    res.json({ success: true, data: tours });
+    const formatted = tours.map(t => {
+      const obj = t.toObject ? t.toObject() : t;
+      obj.id = obj._id;
+      obj.name = obj.name || obj.title;
+      obj.image_url = obj.image_url || (obj.images && obj.images[0]) || '';
+      return obj;
+    });
+    res.json({ success: true, data: formatted });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
@@ -17,7 +22,11 @@ router.get('/', async (req, res) => {
 // Admin routes (Protected by Clerk Auth and Admin Role)
 router.post('/', requireAuth, authorize('admin'), async (req, res) => {
   try {
-    const tour = new Tour(req.body);
+    const payload = { ...req.body };
+    if (payload.name && !payload.title) payload.title = payload.name;
+    if (payload.image_url && !payload.images) payload.images = [payload.image_url];
+    
+    const tour = new Tour(payload);
     await tour.save();
     res.status(201).json({ success: true, data: tour });
   } catch (error) {

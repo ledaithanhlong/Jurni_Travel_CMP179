@@ -1,8 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
-const { requireAuth } = require('../middlewares/auth');
-const { authorize } = require('../middlewares/authorize');
+const { requireAuth, authorize } = require('../middlewares/auth');
 
 // Public routes
 router.post('/sync', userController.syncClerkUser);

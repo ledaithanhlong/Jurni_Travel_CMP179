@@ -8,22 +8,28 @@ exports.syncClerkUser = async (req, res) => {
     // Determine role based on ADMIN_EMAILS env (with trim and lowercase for accuracy)
     const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
     const userEmail = email.trim().toLowerCase();
-    const role = adminEmails.includes(userEmail) ? 'admin' : 'user';
-
-    const userData = {
-      clerkId,
-      email: userEmail,
-      firstName,
-      lastName,
-      photoUrl,
-      role
-    };
-
-    const user = await User.findOneAndUpdate(
-      { $or: [{ clerkId }, { email }] },
-      userData,
-      { new: true, upsert: true }
-    );
+    let user = await User.findOne({ $or: [{ clerkId }, { email: userEmail }] });
+    
+    if (user) {
+      // Update info but preserve existing role
+      user.clerkId = clerkId;
+      user.firstName = firstName || user.firstName;
+      user.lastName = lastName || user.lastName;
+      user.photoUrl = photoUrl || user.photoUrl;
+      await user.save();
+    } else {
+      // Create new user with role based on .env
+      const role = adminEmails.includes(userEmail) ? 'admin' : 'user';
+      user = new User({
+        clerkId,
+        email: userEmail,
+        firstName,
+        lastName,
+        photoUrl,
+        role
+      });
+      await user.save();
+    }
     
     return res.status(200).json({ success: true, message: 'User synced/updated', user });
   } catch (error) {
@@ -70,7 +76,13 @@ exports.getBookingHistory = async (req, res) => {
 exports.getAllUsers = async (req, res) => {
   try {
     const users = await User.find();
-    res.json({ success: true, data: users });
+    const formatted = users.map(u => {
+      const obj = u.toObject ? u.toObject() : u;
+      obj.id = obj._id;
+      obj.name = obj.firstName ? `${obj.firstName} ${obj.lastName}` : obj.email;
+      return obj;
+    });
+    res.json({ success: true, data: formatted });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

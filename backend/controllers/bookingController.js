@@ -60,7 +60,23 @@ exports.createBooking = async (req, res) => {
 exports.getAllBookings = async (req, res) => {
   try {
     const bookings = await Booking.find().populate('userId').populate('tourId');
-    res.json({ success: true, data: bookings });
+    const formatted = bookings.map(b => {
+      const obj = b.toObject ? b.toObject() : b;
+      obj.id = obj._id;
+      obj.total_price = obj.totalPrice;
+      obj.service_type = obj.tourId ? (obj.tourId.category || 'tour') : 'N/A';
+      obj.service_id = obj.tourId ? obj.tourId._id : 'N/A';
+      // Map user object for Admin
+      if (obj.userId) {
+        obj.user = {
+          name: obj.userId.firstName ? `${obj.userId.firstName} ${obj.userId.lastName}` : obj.userId.email,
+          email: obj.userId.email
+        };
+        obj.user_id = obj.userId._id;
+      }
+      return obj;
+    });
+    res.json({ success: true, data: formatted });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

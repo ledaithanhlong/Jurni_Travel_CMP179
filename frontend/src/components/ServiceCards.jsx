@@ -1,6 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { IconStar, IconLocation, IconBed, IconClock } from './Icons';
+import axios from 'axios';
+import { useAuth } from '@clerk/clerk-react';
+import { IconStar, IconLocation, IconBed, IconClock, IconHeart } from './Icons';
+import { useToast } from './ToastProvider.jsx';
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 // Format price utility
 const formatPrice = (price) => {
@@ -8,22 +13,74 @@ const formatPrice = (price) => {
 };
 
 export function HotelCard({ hotel }) {
+    const [isFavorite, setIsFavorite] = useState(false);
+    const { getToken } = useAuth();
+    const { pushToast } = useToast();
+
     if (!hotel) return null;
+
+    const handleFavorite = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        try {
+            const token = await getToken();
+            if (!token) {
+                pushToast({ type: 'warning', message: 'Vui lòng đăng nhập để lưu yêu thích!' });
+                return;
+            }
+
+            const res = await axios.post(`${API}/favorites/toggle`, 
+                { 
+                    serviceType: 'hotel', 
+                    serviceId: String(hotel.id || hotel._id),
+                    data: {
+                        title: hotel.name,
+                        location: hotel.location,
+                        price: hotel.price,
+                        image_url: hotel.image_url,
+                        category: 'hotel'
+                    }
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (res.data.success) {
+                const removed = res.data?.message === 'Removed from favorites';
+                setIsFavorite(!removed);
+                pushToast({ type: 'success', message: removed ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích' });
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            const msg = error.response?.data?.message || 'Có lỗi xảy ra khi lưu yêu thích.';
+            pushToast({ type: 'error', message: msg });
+        }
+    };
+
     return (
-        <a href={`/hotels/${hotel.id}`} className="group bg-white rounded-3xl shadow-lg border-2 border-gray-100 hover:border-orange-500 hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer flex flex-col h-full">
-            {hotel.image_url && (
-                <div className="relative h-56 overflow-hidden flex-shrink-0">
-                    <img
-                        src={hotel.image_url}
-                        alt={hotel.name}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                    <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1">
-                        <IconStar className="w-4 h-4 text-yellow-500 fill-current" />
-                        <span className="font-bold text-gray-900">{hotel.rating || 4}</span>
+        <div className="relative group bg-white rounded-3xl shadow-lg border-2 border-gray-100 hover:border-orange-500 hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer flex flex-col h-full">
+            {/* Favorite button */}
+            <button 
+                onClick={handleFavorite}
+                className="absolute top-4 right-4 z-20 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-md hover:scale-110 transition-transform"
+            >
+                <IconHeart className={`w-5 h-5 ${isFavorite ? 'text-red-500 fill-current' : 'text-gray-400'}`} filled={isFavorite} />
+            </button>
+
+            <a href={`/hotels/${hotel.id}`} className="flex flex-col h-full">
+                {hotel.image_url && (
+                    <div className="relative h-56 overflow-hidden flex-shrink-0">
+                        <img
+                            src={hotel.image_url}
+                            alt={hotel.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        />
+                        <div className="absolute top-4 right-16 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1 shadow-md">
+                            <IconStar className="w-4 h-4 text-yellow-500 fill-current" />
+                            <span className="font-bold text-gray-900">{hotel.rating || 4}</span>
+                        </div>
                     </div>
-                </div>
-            )}
+                )}
             <div className="p-5 flex flex-col flex-1">
                 <div className="flex-1">
                     <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-orange-600 transition-colors line-clamp-1">
@@ -68,12 +125,56 @@ export function HotelCard({ hotel }) {
                     Xem chi tiết
                 </button>
             </div>
-        </a>
+            </a>
+        </div>
     );
 }
 
 export function ActivityCard({ activity, onClick }) {
+    const [isFavorite, setIsFavorite] = useState(false);
+    const { getToken } = useAuth();
+    const { pushToast } = useToast();
+
     if (!activity) return null;
+
+    const handleFavorite = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        try {
+            const token = await getToken();
+            if (!token) {
+                pushToast({ type: 'warning', message: 'Vui lòng đăng nhập để lưu yêu thích!' });
+                return;
+            }
+
+            const res = await axios.post(`${API}/favorites/toggle`, 
+                { 
+                    serviceType: 'activity', 
+                    serviceId: String(activity.id || activity._id),
+                    data: {
+                        title: activity.name,
+                        location: activity.location || activity.city,
+                        price: activity.price,
+                        image_url: activity.image_url,
+                        category: activity.category || 'activity'
+                    }
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (res.data.success) {
+                const removed = res.data?.message === 'Removed from favorites';
+                setIsFavorite(!removed);
+                pushToast({ type: 'success', message: removed ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích' });
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            const msg = error.response?.data?.message || 'Có lỗi xảy ra khi lưu yêu thích.';
+            pushToast({ type: 'error', message: msg });
+        }
+    };
+
     return (
         <div
             onClick={() => onClick && onClick(activity)}
@@ -91,6 +192,12 @@ export function ActivityCard({ activity, onClick }) {
                         <span className="text-white">No Image</span>
                     </div>
                 )}
+                <button 
+                    onClick={handleFavorite}
+                    className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-md hover:scale-110 transition-transform z-10"
+                >
+                    <IconHeart className={`w-5 h-5 ${isFavorite ? 'text-red-500 fill-current' : 'text-gray-400'}`} filled={isFavorite} />
+                </button>
                 {activity.category && (
                     <div className="absolute top-4 left-4 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold shadow-md">
                         {activity.category}
@@ -132,8 +239,50 @@ export function ActivityCard({ activity, onClick }) {
 }
 
 export function FlightCard({ flight }) {
+    const [isFavorite, setIsFavorite] = useState(false);
+    const { getToken } = useAuth();
+    const { pushToast } = useToast();
+
     if (!flight) return null;
-    // Compact version of Flight Card for Homepage Grid
+
+    const handleFavorite = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        try {
+            const token = await getToken();
+            if (!token) {
+                pushToast({ type: 'warning', message: 'Vui lòng đăng nhập để lưu yêu thích!' });
+                return;
+            }
+
+            const res = await axios.post(`${API}/favorites/toggle`, 
+                { 
+                    serviceType: 'flight', 
+                    serviceId: String(flight.id || flight._id),
+                    data: {
+                        title: `${flight.departure_city} → ${flight.arrival_city}`,
+                        location: `${flight.departure_city} → ${flight.arrival_city}`,
+                        price: flight.price,
+                        image_url: flight.image_url,
+                        category: 'flight',
+                        airline: flight.airline
+                    }
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            );
+
+            if (res.data.success) {
+                const removed = res.data?.message === 'Removed from favorites';
+                setIsFavorite(!removed);
+                pushToast({ type: 'success', message: removed ? 'Đã xóa khỏi danh sách yêu thích' : 'Đã thêm vào danh sách yêu thích' });
+            }
+        } catch (error) {
+            console.error('Error toggling favorite:', error);
+            const msg = error.response?.data?.message || 'Có lỗi xảy ra khi lưu yêu thích.';
+            pushToast({ type: 'error', message: msg });
+        }
+    };
 
     const formatTime = (dateString) => {
         const date = new Date(dateString);
@@ -141,8 +290,15 @@ export function FlightCard({ flight }) {
     };
 
     return (
-        <Link to="/flights" className="group block bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-orange-500 transition-all duration-300 h-full">
-            <div className="p-4 flex flex-col h-full">
+        <div className="relative group block bg-white border border-gray-200 rounded-xl overflow-hidden hover:shadow-lg hover:border-orange-500 transition-all duration-300 h-full">
+            <Link to="/flights" className="p-4 flex flex-col h-full">
+                {/* Favorite button */}
+                <button 
+                    onClick={handleFavorite}
+                    className="absolute top-2 right-2 bg-white/90 backdrop-blur-sm p-1.5 rounded-full shadow-md hover:scale-110 transition-transform z-10"
+                >
+                    <IconHeart className={`w-4 h-4 ${isFavorite ? 'text-red-500 fill-current' : 'text-gray-400'}`} filled={isFavorite} />
+                </button>
                 {/* Airline & Logo */}
                 <div className="flex items-center gap-3 mb-3">
                     {flight.image_url ? (
@@ -185,7 +341,7 @@ export function FlightCard({ flight }) {
                         Chọn →
                     </span>
                 </div>
-            </div>
-        </Link>
+            </Link>
+        </div>
     );
 }

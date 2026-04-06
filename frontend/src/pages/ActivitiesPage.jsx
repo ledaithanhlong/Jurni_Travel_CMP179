@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { sampleActivities } from '../data/mockData';
 import { ActivityCard } from '../components/ServiceCards';
+import { useAuth } from '@clerk/clerk-react';
+import { useToast } from '../components/ToastProvider.jsx';
 
 import {
   IconUsers, IconActivity, IconActivityLarge, IconShield,
@@ -16,6 +18,11 @@ export default function ActivitiesPage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
+  const { getToken, isSignedIn } = useAuth();
+  const { pushToast } = useToast();
+  const [reviews, setReviews] = useState([]);
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' });
 
   // Booking details
   const [tourDate, setTourDate] = useState('');
@@ -95,6 +102,65 @@ export default function ActivitiesPage() {
     setSelectedActivity(null);
     setTourDate('');
     setParticipants(1);
+    setReviews([]);
+    setReviewForm({ rating: 5, comment: '' });
+  };
+
+  useEffect(() => {
+    if (!selectedActivity) return;
+    let mounted = true;
+    (async () => {
+      try {
+        setReviewLoading(true);
+        const res = await axios.get(`${API}/reviews/service/activity/${selectedActivity.id}`);
+        if (!mounted) return;
+        setReviews(res.data?.data || []);
+      } catch (e) {
+        if (!mounted) return;
+        setReviews([]);
+      } finally {
+        if (mounted) setReviewLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, [selectedActivity]);
+
+  const submitReview = async () => {
+    try {
+      if (!isSignedIn) {
+        pushToast({ type: 'warning', message: 'Vui lòng đăng nhập để đánh giá.' });
+        return;
+      }
+      const token = await getToken();
+      if (!token) {
+        pushToast({ type: 'warning', message: 'Vui lòng đăng nhập để đánh giá.' });
+        return;
+      }
+      if (!reviewForm.comment.trim()) {
+        pushToast({ type: 'warning', message: 'Vui lòng nhập nội dung đánh giá.' });
+        return;
+      }
+
+      const form = new FormData();
+      form.append('serviceType', 'activity');
+      form.append('serviceId', String(selectedActivity.id));
+      form.append('rating', String(reviewForm.rating));
+      form.append('comment', reviewForm.comment.trim());
+
+      const res = await axios.post(`${API}/reviews`, form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        }
+      });
+
+      pushToast({ type: 'success', message: 'Gửi đánh giá thành công.' });
+      setReviewForm({ rating: 5, comment: '' });
+      const refreshed = await axios.get(`${API}/reviews/service/activity/${selectedActivity.id}`);
+      setReviews(refreshed.data?.data || []);
+    } catch (e) {
+      const msg = e.response?.data?.message || e.response?.data?.error || 'Không thể gửi đánh giá.';
+      pushToast({ type: 'error', message: msg });
+    }
   };
 
   const activities = rows.length > 0 ? rows : sampleActivities;
@@ -575,6 +641,79 @@ export default function ActivitiesPage() {
                     </div>
                   );
                 })()}
+
+                {/* Reviews */}
+                <div className="mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Đánh giá</h3>
+
+                  <div className="rounded-xl border border-gray-200 bg-white p-4">
+                    <div className="grid gap-3 md:grid-cols-5">
+                      <div className="md:col-span-1">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Số sao</label>
+                        <select
+                          value={reviewForm.rating}
+                          onChange={(e) => setReviewForm((prev) => ({ ...prev, rating: Number(e.target.value) }))}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:border-blue-500"
+                        >
+                          {[5, 4, 3, 2, 1].map((v) => (
+                            <option key={v} value={v}>{v} sao</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="md:col-span-4">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung</label>
+                        <textarea
+                          value={reviewForm.comment}
+                          onChange={(e) => setReviewForm((prev) => ({ ...prev, comment: e.target.value }))}
+                          rows={3}
+                          className="w-full rounded-lg border border-gray-200 px-3 py-2 focus:outline-none focus:border-blue-500"
+                          placeholder="Chia sẻ trải nghiệm của bạn..."
+                        />
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={submitReview}
+                      className="mt-3 w-full rounded-full px-5 py-2.5 text-sm font-semibold text-white"
+                      style={{ backgroundColor: '#FF6B35' }}
+                      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FF8C42'}
+                      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FF6B35'}
+                    >
+                      Gửi đánh giá
+                    </button>
+                    <p className="mt-2 text-xs text-gray-500">
+                      Chỉ đánh giá được khi bạn đã đặt/ thanh toán hoạt động này (đúng yêu cầu “đã tham gia”).
+                    </p>
+                  </div>
+
+                  <div className="mt-4 space-y-3">
+                    {reviewLoading ? (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                        Đang tải đánh giá...
+                      </div>
+                    ) : reviews.length === 0 ? (
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+                        Chưa có đánh giá nào.
+                      </div>
+                    ) : (
+                      reviews.map((r) => (
+                        <div key={r._id} className="rounded-xl border border-gray-200 bg-white p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {r.userId ? `${r.userId.firstName || ''} ${r.userId.lastName || ''}`.trim() : 'Người dùng'}
+                            </div>
+                            <div className="text-sm font-semibold" style={{ color: '#FF6B35' }}>
+                              {r.rating} / 5
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-gray-700 whitespace-pre-line">
+                            {r.comment}
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
 
                 {/* Contact */}
                 <div id="lien-he" className="bg-gradient-to-r from-blue-600 to-sky-600 rounded-xl p-6 text-white">

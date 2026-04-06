@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import ChatWidget from '../components/ChatWidget.jsx';
 import AboutPage from '../pages/AboutPage.jsx';
 import ActivitiesPage from '../pages/ActivitiesPage.jsx';
@@ -19,31 +19,48 @@ import PromotionsPage from '../pages/PromotionsPage.jsx';
 import ServicesPage from '../pages/ServicesPage.jsx';
 import SignInPage from '../pages/SignInPage.jsx';
 import SignUpPage from '../pages/SignUpPage.jsx';
+import SsoCallbackPage from '../pages/SsoCallbackPage.jsx';
 import SupportPage from '../pages/SupportPage.jsx';
 import TermsPage from '../pages/TermsPage.jsx';
 import VerifyEmailPage from '../pages/VerifyEmailPage.jsx';
 import VouchersPage from '../pages/VouchersPage.jsx';
+import { ToastProvider } from '../components/ToastProvider.jsx';
+import { SignedIn, SignedOut, UserButton, useUser } from '@clerk/clerk-react';
 
 import BookingsPage from '../pages/BookingsPage.jsx';
 import CareersPage from '../pages/CareersPage.jsx';
 import TeamPage from '../pages/TeamPage.jsx';
 
 const NavUserSection = () => {
+  const { user } = useUser();
+  const role = user?.publicMetadata?.role;
+
   return (
     <>
       <Link to="/bookings" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Đặt chỗ của tôi</Link>
       <Link to="/checkout" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Thanh toán</Link>
       <Link to="/favorites" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Yêu thích</Link>
-      <Link to="/notifications" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Thông báo</Link>
-      <Link
-        to="/admin"
-        className="text-sm text-white px-3 py-1 rounded-lg transition shadow-md font-medium hover:opacity-90 whitespace-nowrap"
-        style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
-      >
-        Quản trị
-      </Link>
+      {role === 'admin' ? (
+        <Link
+          to="/admin"
+          className="text-sm text-white px-3 py-1 rounded-lg transition shadow-md font-medium hover:opacity-90 whitespace-nowrap"
+          style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
+        >
+          Quản trị
+        </Link>
+      ) : null}
+      <UserButton />
     </>
   );
+};
+
+const RequireAdmin = ({ children }) => {
+  const { isLoaded, isSignedIn, user } = useUser();
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <Navigate to="/sign-in" replace />;
+  const role = user?.publicMetadata?.role;
+  if (role !== 'admin') return <Navigate to="/" replace />;
+  return children;
 };
 
 const Nav = () => {
@@ -84,17 +101,21 @@ const Nav = () => {
             </div>
           </div>
           <div className="flex items-center gap-3 flex-nowrap">
-            <NavUserSection />
-            <Link to="/sign-in" className="text-white/90 hover:text-orange-accent px-4 py-2 font-medium transition drop-shadow-sm whitespace-nowrap">
-              Đăng Nhập
-            </Link>
-            <Link
-              to="/sign-up"
-              className="text-white px-4 py-2 rounded-lg font-medium transition shadow-md hover:opacity-90 whitespace-nowrap"
-              style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
-            >
-              Đăng ký
-            </Link>
+            <SignedIn>
+              <NavUserSection />
+            </SignedIn>
+            <SignedOut>
+              <Link to="/sign-in" className="text-white/90 hover:text-orange-accent px-4 py-2 font-medium transition drop-shadow-sm whitespace-nowrap">
+                Đăng Nhập
+              </Link>
+              <Link
+                to="/sign-up"
+                className="text-white px-4 py-2 rounded-lg font-medium transition shadow-md hover:opacity-90 whitespace-nowrap"
+                style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
+              >
+                Đăng ký
+              </Link>
+            </SignedOut>
           </div>
         </div>
       </div>
@@ -104,12 +125,14 @@ const Nav = () => {
 
 export default function App() {
   return (
-    <div className="flex flex-col min-h-screen bg-white">
-      <Nav />
-      <main className="flex-1 pt-16">
-        <Routes>
+    <ToastProvider>
+      <div className="flex flex-col min-h-screen bg-white">
+        <Nav />
+        <main className="flex-1 pt-16">
+          <Routes>
           <Route path="/sign-in" element={<SignInPage />} />
           <Route path="/sign-up" element={<SignUpPage />} />
+          <Route path="/sso-callback" element={<SsoCallbackPage />} />
           <Route path="/sign-up/verify-email-address" element={<VerifyEmailPage />} />
           <Route path="/" element={<div className="pt-0"><HomePage /></div>} />
           <Route path="/hotels" element={<div className="max-w-7xl mx-auto px-4 py-6"><HotelsPage /></div>} />
@@ -121,7 +144,11 @@ export default function App() {
           <Route path="/vouchers" element={<div className="max-w-7xl mx-auto px-4 py-6"><VouchersPage /></div>} />
           <Route path="/favorites" element={<div className="max-w-7xl mx-auto px-4 py-6"><FavoritesPage /></div>} />
           <Route path="/notifications" element={<div className="max-w-7xl mx-auto px-4 py-6"><NotificationsPage /></div>} />
-          <Route path="/admin" element={<div className="max-w-7xl mx-auto px-4 py-6"><AdminDashboard /></div>} />
+          <Route path="/admin" element={
+            <RequireAdmin>
+              <div className="max-w-7xl mx-auto px-4 py-6"><AdminDashboard /></div>
+            </RequireAdmin>
+          } />
           <Route path="/bookings" element={<div className="max-w-7xl mx-auto px-4 py-6"><BookingsPage /></div>} />
           <Route path="/checkout" element={<PaymentPage />} />
           <Route path="/about" element={<AboutPage />} />
@@ -134,11 +161,11 @@ export default function App() {
           <Route path="/promotions" element={<div className="max-w-7xl mx-auto px-4 py-6"><PromotionsPage /></div>} />
           <Route path="/careers/apply/:jobId" element={<JobApplicationPage />} />
           <Route path="/flight-ideas" element={<div className="max-w-7xl mx-auto px-4 py-6"><FlightIdeasPage /></div>} />
-        </Routes>
+          </Routes>
 
-      </main>
-      <ChatWidget />
-      <footer className="text-white" style={{ backgroundColor: '#0D47A1' }}>
+        </main>
+        <ChatWidget />
+        <footer className="text-white" style={{ backgroundColor: '#0D47A1' }}>
         <div className="max-w-7xl mx-auto px-4 py-8 grid gap-8 md:grid-cols-3">
           <div>
             <div className="text-xl font-semibold tracking-wide">Jurni</div>
@@ -191,8 +218,9 @@ export default function App() {
             </nav>
           </div>
         </div>
-      </footer>
-    </div>
+        </footer>
+      </div>
+    </ToastProvider>
   );
 }
 

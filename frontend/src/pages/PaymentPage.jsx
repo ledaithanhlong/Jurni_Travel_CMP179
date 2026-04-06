@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 
 const formatCurrency = (value = 0, currency = 'VND') => {
   const number = Number(value) || 0;
@@ -173,6 +173,7 @@ export default function PaymentPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -352,7 +353,6 @@ export default function PaymentPage() {
       const payload = {
         amount: total,
         currency: 'VND',
-        currency: 'VND',
         paymentMethod: form.paymentMethod,
         customer: {
           name: form.fullName,
@@ -366,7 +366,10 @@ export default function PaymentPage() {
 
       const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       // Backend route is /api/payments/checkout (mounted at /payments in index.js, and /checkout in payments.routes.js)
-      const res = await axios.post(`${API}/payments/checkout`, payload);
+      const token = await getToken();
+      const res = await axios.post(`${API}/payments/checkout`, payload, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      });
 
       if (res.data.success) {
         setStatus({ type: 'success', message: 'Thanh toán thành công! Đang chuyển đến trang voucher...', reference: res.data.payment?.reference });

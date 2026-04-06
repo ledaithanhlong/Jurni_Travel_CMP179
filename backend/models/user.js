@@ -48,7 +48,7 @@ const userSchema = new mongoose.Schema(
     }
 );
 
-// Equivalent to Sequelize hasMany associations.
+// Quan he 1-n voi bookings, favorites va notifications.
 userSchema.virtual('bookings', {
     ref: 'Booking',
     localField: '_id',

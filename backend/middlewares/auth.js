@@ -1,120 +1,101 @@
-import { clerkMiddleware, getAuth } from '@clerk/express';
+import { clerkMiddleware, getAuth, requireAuth as clerkRequireAuth } from '@clerk/express';
 import { env } from '../config/env.js';
 import db from '../models/index.js';
 
-const clerkAuth = env.clerk?.secretKey
+export const clerkAuth = env.clerk.secretKey
     ? clerkMiddleware({ secretKey: env.clerk.secretKey })
     : clerkMiddleware();
 
-async function syncUser(req, res, next) {
-    try {
-        let auth;
-        try {
-            auth = getAuth(req);
-        } catch (error) {
-            return next();
-        }
-        if (!auth?.userId) {
-            return next();
-        }
 
-        const user = await db.User.findOne({ clerkId: auth.userId });
+export const syncUser = async (req, res, next) => {
+    try {
+        const auth = getAuth(req);
+        if (!auth?.userId) return next();
+
+        let user = await db.User.findOne({ where: { clerkId: auth.userId } });
+
         if (user) {
             req.user = user;
+        } else {
+            console.log('Khong tim thay user', auth.userId);
         }
-
-        return next();
-    } catch (error) {
-        return next(error);
+        next();
+    } catch (e) {
+        console.error('syncUser error:', e);
+        next(e);
     }
-}
+};
 
-const requireAuth = [
-    syncUser,
-    async function (req, res, next) {
-        try {
-            let auth;
-            try {
-                auth = getAuth(req);
-            } catch (error) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-            }
+export const requireAuth = [clerkRequireAuth(), syncUser];
 
-            if (!auth?.userId) {
-                return res.status(401).json({
-                    success: false,
-                    message: 'Unauthorized',
-                });
-            }
-
-            if (!req.user) {
-                req.user = await db.User.findOne({ clerkId: auth.userId });
-            }
-
-            return next();
-        } catch (error) {
-            return next(error);
+export const requireRole = (role) => async (req, res, next) => {
+    try {
+        const auth = getAuth(req);
+        if (!auth?.userId) {
+            return res.status(401).json({ error: 'Unauthorized' });
         }
-    },
-];
 
-function requireRole(role) {
-    return async function (req, res, next) {
-        try {
-            const auth = getAuth(req);
-            if (!auth?.userId) {
-                return res.status(401).json({ success: false, message: 'Unauthorized' });
-            }
+        const clerkId = auth.userId;
 
-            let user = req.user || await db.User.findOne({ clerkId: auth.userId });
+        // Tìm user trong database
+        let user = await db.User.findOne({ where: { clerkId } });
 
-            let email = user?.email || null;
-            if (!email && auth.sessionClaims) {
-                email =
-                    auth.sessionClaims.email ||
-                    auth.sessionClaims.primary_email_address ||
-                    (Array.isArray(auth.sessionClaims.email_addresses)
-                        ? auth.sessionClaims.email_addresses[0]?.email_address || auth.sessionClaims.email_addresses[0]
-                        : null);
-            }
-
-            const isAdminByEmail = Boolean(email && env.adminEmails.includes(email));
-
-            if (!user && isAdminByEmail) {
-                user = await db.User.create({
-                    clerkId: auth.userId,
-                    name: auth.sessionClaims?.name || email?.split('@')[0] || 'Admin',
-                    email,
-                    role: 'admin',
-                });
-            }
-
-            if (user && isAdminByEmail && user.role !== 'admin') {
-                user.role = 'admin';
-                await user.save();
-            }
-
-            const currentRole = user?.role || (isAdminByEmail ? 'admin' : 'user');
-            if (role && currentRole !== role) {
-                return res.status(403).json({
-                    success: false,
-                    message: 'Forbidden',
-                });
-            }
-
-            req.user = user || null;
-            return next();
-        } catch (error) {
-            return next(error);
+        let email = user?.email;
+        if (!email && auth.sessionClaims) {
+            // Thử lấy email từ session claims
+            email = auth.sessionClaims.email ||
+                auth.sessionClaims.primary_email_address ||
+                (auth.sessionClaims.email_addresses && Array.isArray(auth.sessionClaims.email_addresses)
+                    ? auth.sessionClaims.email_addresses[0]?.email_address || auth.sessionClaims.email_addresses[0]
+                    : null);
         }
-    };
-}
 
-export {
-    clerkAuth, requireAuth,
-    requireRole, syncUser
+        console.log('requireRole: User found:', !!user, 'Email:', email, 'User role:', user?.role);
+        console.log('requireRole: Admin emails:', env.adminEmails);
+
+        // Kiểm tra xem email có trong danh sách admin không
+        const isAdminByEmail = email && env.adminEmails.includes(email);
+        console.log('requireRole: Is admin by email:', isAdminByEmail);
+
+        // Nếu user chưa có trong DB nhưng email là admin, tạo user với role admin
+        if (!user && isAdminByEmail) {
+            console.log('requireRole: Creating admin user in DB');
+            user = await db.User.create({
+                clerkId,
+                name: auth.sessionClaims?.name || email?.split('@')[0] || 'Admin',
+                email: email,
+                role: 'admin'
+            });
+        }
+
+        // Nếu user có trong DB nhưng role không đúng và email là admin, cập nhật role
+        if (user && isAdminByEmail && user.role !== 'admin') {
+            console.log('requireRole: Updating user role to admin');
+            await user.update({ role: 'admin' });
+            user.role = 'admin';
+        }
+
+        // Xác định role cuối cùng
+        const roleValue = user?.role || (isAdminByEmail ? 'admin' : 'user');
+        console.log('requireRole: Final role value:', roleValue, 'Required role:', role);
+
+        // Kiểm tra quyền
+        if (role === 'admin' && roleValue !== 'admin') {
+            console.log('requireRole: Access denied - user is not admin');
+            return res.status(403).json({
+                error: 'Forbidden',
+                message: 'Admin access required',
+                userRole: roleValue,
+                userEmail: email
+            });
+        }
+
+        req.user = user || null;
+        console.log('requireRole: Access granted');
+        return next();
+    } catch (e) {
+        console.error('requireRole error:', e);
+        return next(e);
+    }
 };
 

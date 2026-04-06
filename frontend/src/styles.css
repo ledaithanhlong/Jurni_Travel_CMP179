@@ -1,0 +1,75 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { 
+  @apply bg-white text-gray-900; 
+}
+
+/* Custom scrollbar for better UX */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1e3a8a;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #f97316;
+}
+
+/* Smooth transitions for all interactive elements */
+button, a {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Focus states for accessibility */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid #f97316;
+  outline-offset: 2px;
+}
+
+/* Clerk component overrides - ensure all fields are visible */
+.cl-formFieldInput,
+.cl-formFieldInput[type="password"],
+.cl-formFieldInput[type="email"],
+.cl-formFieldInput[type="text"] {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: 100% !important;
+  min-height: 40px !important;
+}
+
+.cl-formFieldRow {
+  display: block !important;
+  visibility: visible !important;
+  margin-bottom: 1rem !important;
+}
+
+.cl-formFieldLabel {
+  display: block !important;
+  margin-bottom: 0.5rem !important;
+}
+
+.cl-rootBox {
+  width: 100% !important;
+}
+
+.cl-card {
+  width: 100% !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+
+

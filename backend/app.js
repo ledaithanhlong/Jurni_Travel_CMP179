@@ -11,6 +11,7 @@ var usersRouter = require('./routes/users');
 var toursRouter = require('./routes/tours');
 var bookingsRouter = require('./routes/bookings');
 var adminRouter = require('./routes/admin');
+var paymentsRouter = require('./routes/payments');
 
 var app = express();
 
@@ -31,6 +32,7 @@ app.use('/api/tours', toursRouter);
 app.use('/api/activities', toursRouter); // Alias for frontend
 app.use('/api/bookings', bookingsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/payments', paymentsRouter);
 
 // app.use('/api/upload', uploadRouter);
 

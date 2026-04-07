@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema(
     {
         _id: {
             type: String,
-            default: randomUUID,
+            default: () => randomUUID(),
         },
         name: {
             type: String,
@@ -69,6 +69,10 @@ userSchema.virtual('notifications', {
 
 userSchema.set('toJSON', { virtuals: true });
 userSchema.set('toObject', { virtuals: true });
+
+userSchema.virtual('id').get(function () {
+    return this._id;
+});
 
 const User = mongoose.model('User', userSchema);
 

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useAuth } from '@clerk/clerk-react';
+import { useLocation } from 'react-router-dom';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -9,6 +10,8 @@ export default function NotificationsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const { getToken } = useAuth();
+  const location = useLocation();
+  const paymentReference = location.state?.paymentReference;
 
   useEffect(() => {
     let mounted = true;
@@ -72,6 +75,11 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-4">
+      {paymentReference && (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Đặt phòng/thanh toán thành công. Mã giao dịch: {paymentReference}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold text-blue-900">Trung tâm thông báo</h1>
         <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-600">

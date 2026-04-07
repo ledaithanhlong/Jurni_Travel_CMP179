@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Route, Routes, useLocation } from 'react-router-dom';
+import { SignedIn, SignedOut, UserButton, useAuth } from '@clerk/clerk-react';
 import ChatWidget from '../components/ChatWidget.jsx';
 import AboutPage from '../pages/AboutPage.jsx';
 import ActivitiesPage from '../pages/ActivitiesPage.jsx';
@@ -30,19 +31,22 @@ import TeamPage from '../pages/TeamPage.jsx';
 
 const NavUserSection = () => {
   return (
-    <>
-      <Link to="/bookings" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Đặt chỗ của tôi</Link>
-      <Link to="/checkout" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Thanh toán</Link>
-      <Link to="/favorites" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Yêu thích</Link>
-      <Link to="/notifications" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Thông báo</Link>
-      <Link
-        to="/admin"
-        className="text-sm text-white px-3 py-1 rounded-lg transition shadow-md font-medium hover:opacity-90 whitespace-nowrap"
-        style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
-      >
-        Quản trị
-      </Link>
-    </>
+    <SignedIn>
+      <div className="flex items-center gap-4">
+        <Link to="/bookings" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Đặt chỗ của tôi</Link>
+        <Link to="/checkout" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Thanh toán</Link>
+        <Link to="/favorites" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Yêu thích</Link>
+        <Link to="/notifications" className="text-sm text-white/90 hover:text-orange-accent transition drop-shadow-sm whitespace-nowrap">Thông báo</Link>
+        <Link
+          to="/admin"
+          className="text-sm text-white px-3 py-1 rounded-lg transition shadow-md font-medium hover:opacity-90 whitespace-nowrap"
+          style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
+        >
+          Quản trị
+        </Link>
+        <UserButton afterSignOutUrl="/" />
+      </div>
+    </SignedIn>
   );
 };
 
@@ -85,16 +89,20 @@ const Nav = () => {
           </div>
           <div className="flex items-center gap-3 flex-nowrap">
             <NavUserSection />
-            <Link to="/sign-in" className="text-white/90 hover:text-orange-accent px-4 py-2 font-medium transition drop-shadow-sm whitespace-nowrap">
-              Đăng Nhập
-            </Link>
-            <Link
-              to="/sign-up"
-              className="text-white px-4 py-2 rounded-lg font-medium transition shadow-md hover:opacity-90 whitespace-nowrap"
-              style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
-            >
-              Đăng ký
-            </Link>
+            <SignedOut>
+              <div className="flex items-center gap-3">
+                <Link to="/sign-in" className="text-white/90 hover:text-orange-accent px-4 py-2 font-medium transition drop-shadow-sm whitespace-nowrap">
+                  Đăng Nhập
+                </Link>
+                <Link
+                  to="/sign-up"
+                  className="text-white px-4 py-2 rounded-lg font-medium transition shadow-md hover:opacity-90 whitespace-nowrap"
+                  style={{ backgroundColor: '#FF6B35', borderRadius: '8px' }}
+                >
+                  Đăng ký
+                </Link>
+              </div>
+            </SignedOut>
           </div>
         </div>
       </div>

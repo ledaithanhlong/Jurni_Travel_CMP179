@@ -13,7 +13,7 @@ export default defineConfig(async () => {
     plugins: reactPlugin ? [reactPlugin()] : [],
     resolve: {
       alias: {
-        '@clerk/clerk-react': fileURLToPath(new URL('./src/lib/clerkShim.jsx', import.meta.url)),
+        '@': fileURLToPath(new URL('./src', import.meta.url)),
       },
     },
     server: { port: 5173 }

@@ -1,41 +1,96 @@
-export default (sequelize, DataTypes) => {
-  const Booking = sequelize.define(
-    'Booking',
+import { randomUUID } from 'crypto';
+import mongoose from 'mongoose';
+
+const bookingSchema = new mongoose.Schema(
     {
-      id: { type: DataTypes.INTEGER.UNSIGNED, primaryKey: true, autoIncrement: true },
-      user_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-      hotel_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
-      flight_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
-      car_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
-      activity_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: true },
-      start_date: { type: DataTypes.DATE, allowNull: true },
-      end_date: { type: DataTypes.DATE, allowNull: true },
-      quantity: { type: DataTypes.INTEGER.UNSIGNED, defaultValue: 1 },
-      item_variant: { type: DataTypes.STRING, allowNull: true },
-      total_price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-      status: {
-        type: DataTypes.ENUM('pending', 'confirmed', 'completed', 'cancelled', 'refunded'),
-        defaultValue: 'pending',
-      },
-      customer_name: { type: DataTypes.STRING },
-      customer_email: { type: DataTypes.STRING },
-      customer_phone: { type: DataTypes.STRING },
-      payment_method: { type: DataTypes.STRING },
-      transaction_id: { type: DataTypes.STRING },
+        _id: {
+            type: String,
+            default: () => randomUUID(),
+        },
+        user_id: {
+            type: String,
+            ref: 'User',
+            required: true,
+        },
+        hotel_id: {
+            type: String,
+            default: null,
+        },
+        flight_id: {
+            type: String,
+            default: null,
+        },
+        car_id: {
+            type: String,
+            default: null,
+        },
+        activity_id: {
+            type: String,
+            default: null,
+        },
+        start_date: {
+            type: Date,
+            default: null,
+        },
+        end_date: {
+            type: Date,
+            default: null,
+        },
+        quantity: {
+            type: Number,
+            default: 1,
+        },
+        item_variant: {
+            type: String,
+            default: null,
+        },
+        total_price: {
+            type: Number,
+            required: true,
+        },
+        status: {
+            type: String,
+            enum: ['pending', 'confirmed', 'completed', 'cancelled', 'refunded'],
+            default: 'pending',
+        },
+        customer_name: {
+            type: String,
+            default: null,
+        },
+        customer_email: {
+            type: String,
+            default: null,
+        },
+        customer_phone: {
+            type: String,
+            default: null,
+        },
+        payment_method: {
+            type: String,
+            default: null,
+        },
+        transaction_id: {
+            type: String,
+            default: null,
+        },
     },
     {
-      tableName: 'Bookings',
-      timestamps: true,
+        collection: 'bookings',
+        timestamps: true,
+        versionKey: false,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true },
     }
-  );
+);
 
-  Booking.associate = (models) => {
-    Booking.belongsTo(models.User, { foreignKey: 'user_id', as: 'user' });
-    Booking.belongsTo(models.Hotel, { foreignKey: 'hotel_id', as: 'hotel' });
-    Booking.belongsTo(models.Flight, { foreignKey: 'flight_id', as: 'flight' });
-    Booking.belongsTo(models.Car, { foreignKey: 'car_id', as: 'car' });
-    Booking.belongsTo(models.Activity, { foreignKey: 'activity_id', as: 'activity' });
-  };
+bookingSchema.virtual('id').get(function () {
+    return this._id;
+});
 
-  return Booking;
-};
+bookingSchema.virtual('created_at').get(function () {
+    return this.createdAt;
+});
+
+const Booking = mongoose.model('Booking', bookingSchema);
+
+export default Booking;

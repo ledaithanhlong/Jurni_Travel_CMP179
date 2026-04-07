@@ -34,14 +34,13 @@ export function setupChatSocket(io) {
                 });
 
                 // Update conversation last_message_at
-                await db.ChatConversation.update(
-                    { last_message_at: new Date() },
-                    { where: { id: conversationId } }
-                );
+                await db.ChatConversation.findByIdAndUpdate(conversationId, {
+                    last_message_at: new Date()
+                });
 
                 // Broadcast message to all in the conversation
                 chatNamespace.to(`conversation-${conversationId}`).emit('new-message', {
-                    id: newMessage.id,
+                    id: newMessage._id,
                     conversation_id: conversationId,
                     sender_type: senderType,
                     sender_name: senderName,
@@ -51,15 +50,13 @@ export function setupChatSocket(io) {
 
                 // If customer sent message to AI, generate AI response
                 if (senderType === 'customer') {
-                    const conversation = await db.ChatConversation.findByPk(conversationId);
+                    const conversation = await db.ChatConversation.findById(conversationId);
 
                     if (conversation && conversation.conversation_type === 'ai') {
                         // Get conversation history for context
-                        const history = await db.ChatMessage.findAll({
-                            where: { conversation_id: conversationId },
-                            order: [['timestamp', 'DESC']],
-                            limit: 10,
-                        });
+                        const history = await db.ChatMessage.find({ conversation_id: conversationId })
+                            .sort({ timestamp: -1 })
+                            .limit(10);
 
                         // Generate AI response
                         const aiResponse = await generateAIResponse(message, history.reverse());
@@ -76,7 +73,7 @@ export function setupChatSocket(io) {
                         // Broadcast AI response
                         setTimeout(() => {
                             chatNamespace.to(`conversation-${conversationId}`).emit('new-message', {
-                                id: aiMessage.id,
+                                id: aiMessage._id,
                                 conversation_id: conversationId,
                                 sender_type: 'ai',
                                 sender_name: 'Jurni AI Assistant',
@@ -101,46 +98,8 @@ export function setupChatSocket(io) {
             });
         });
 
-        // Agent joins conversation (for admin)
-        socket.on('agent-join', async ({ conversationId, agentId, agentName }) => {
-            try {
-                await db.ChatConversation.update(
-                    {
-                        assigned_agent_id: agentId,
-                        status: 'active',
-                    },
-                    { where: { id: conversationId } }
-                );
-
-                chatNamespace.to(`conversation-${conversationId}`).emit('agent-joined', {
-                    conversationId,
-                    agentName,
-                });
-            } catch (error) {
-                console.error('Error assigning agent:', error);
-            }
-        });
-
-        // Close conversation
-        socket.on('close-conversation', async ({ conversationId }) => {
-            try {
-                await db.ChatConversation.update(
-                    { status: 'closed' },
-                    { where: { id: conversationId } }
-                );
-
-                chatNamespace.to(`conversation-${conversationId}`).emit('conversation-closed', {
-                    conversationId,
-                });
-            } catch (error) {
-                console.error('Error closing conversation:', error);
-            }
-        });
-
         socket.on('disconnect', () => {
             console.log('Client disconnected from chat:', socket.id);
         });
     });
-
-    return chatNamespace;
 }

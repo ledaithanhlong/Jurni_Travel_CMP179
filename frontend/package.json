@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@clerk/clerk-react": "^5.61.4",
     "axios": "^1.7.7",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",

@@ -1,42 +1,42 @@
 import { randomUUID } from 'crypto';
 import mongoose from 'mongoose';
 
-const testimonialSchema = new mongoose.Schema(
+const chatMessageSchema = new mongoose.Schema(
     {
         _id: {
             type: String,
             default: randomUUID,
         },
-        name: {
+        conversation_id: {
             type: String,
             required: true,
-            trim: true,
+            ref: 'ChatConversation',
         },
-        role: {
+        sender_type: {
             type: String,
-            required: true,
-            trim: true,
-        },
-        quote: {
-            type: String,
+            enum: ['customer', 'admin', 'ai', 'system'],
             required: true,
         },
-        avatar_url: {
+        sender_name: {
             type: String,
-            default: null,
+            required: true,
         },
-        order: {
-            type: Number,
-            default: 0,
+        message: {
+            type: String,
+            required: true,
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now,
         },
     },
     {
-        collection: 'testimonials',
+        collection: 'chat_messages',
         timestamps: true,
         versionKey: false,
     }
 );
 
-const Testimonial = mongoose.model('Testimonial', testimonialSchema);
+const ChatMessage = mongoose.model('ChatMessage', chatMessageSchema);
 
-export default Testimonial;
+export default ChatMessage;

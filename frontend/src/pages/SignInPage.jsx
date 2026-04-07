@@ -1,16 +1,38 @@
-import React, { useState } from 'react';
 import { useSignIn } from '@clerk/clerk-react';
-import { useNavigate, Link } from 'react-router-dom';
+import axios from 'axios';
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function SignInPage() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const navigate = useNavigate();
 
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const activateSession = async (result) => {
+    if (result.status !== 'complete') {
+      throw new Error('Đăng nhập không thành công. Vui lòng thử lại.');
+    }
+
+    await setActive({ session: result.createdSessionId });
+    navigate('/');
+  };
+
+  const signInWithIdentifier = async (rawIdentifier, rawPassword) => {
+    const normalizedIdentifier = String(rawIdentifier || '').trim();
+    const normalizedPassword = String(rawPassword || '');
+
+    return signIn.create({
+      identifier: normalizedIdentifier,
+      password: normalizedPassword,
+    });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -21,31 +43,46 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      // Sign in with email and password
-      const result = await signIn.create({
-        identifier: email,
-        password: password,
-      });
-
-      if (result.status === 'complete') {
-        // Set the active session
-        await setActive({ session: result.createdSessionId });
-        // Redirect to home
-        navigate('/');
-      } else {
-        // Handle other statuses if needed
-        setError('Đăng nhập không thành công. Vui lòng thử lại.');
-      }
+      const firstAttempt = await signInWithIdentifier(identifier, password);
+      await activateSession(firstAttempt);
     } catch (err) {
       console.error('Sign in error:', err);
 
+      const errorMessage = err?.errors?.[0]?.message || err?.message || '';
+      const isIdentifierIssue = /identifier is invalid|couldn\'t find your account|not found/i.test(errorMessage);
+
+      // Fallback: validate credentials via backend then retry Clerk with canonical username.
+      if (isIdentifierIssue) {
+        try {
+          const loginRes = await axios.post(`${API}/auth/login`, {
+            identifier: String(identifier || '').trim(),
+            password: String(password || '')
+          });
+
+          const canonicalUsername = loginRes.data?.user?.username;
+          if (!canonicalUsername) {
+            setError('Không tìm thấy username của tài khoản. Vui lòng thử lại.');
+            return;
+          }
+
+          const secondAttempt = await signInWithIdentifier(canonicalUsername, password);
+          await activateSession(secondAttempt);
+          return;
+        } catch (fallbackErr) {
+          const backendMsg = fallbackErr?.response?.data?.error;
+          if (backendMsg) {
+            setError(backendMsg);
+            return;
+          }
+        }
+      }
+
       // Handle specific error messages
       if (err.errors && err.errors.length > 0) {
-        const errorMessage = err.errors[0].message;
         if (errorMessage.includes('password')) {
           setError('Mật khẩu không đúng. Vui lòng thử lại.');
         } else if (errorMessage.includes('identifier')) {
-          setError('Email không tồn tại. Vui lòng kiểm tra lại.');
+          setError('Tài khoản không tồn tại hoặc chưa bật đăng nhập bằng email. Vui lòng thử username.');
         } else {
           setError(errorMessage);
         }
@@ -83,21 +120,21 @@ export default function SignInPage() {
               </div>
             )}
 
-            {/* Email input */}
+            {/* Username or email input */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+              <label htmlFor="identifier" className="block text-sm font-medium text-gray-700 mb-1">
+                Username hoặc Email
               </label>
               <input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
+                id="identifier"
+                name="identifier"
+                type="text"
+                autoComplete="username"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 className="appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-dark focus:border-blue-dark focus:z-10 sm:text-sm"
-                placeholder="Email của bạn"
+                placeholder="username hoặc email"
                 disabled={loading}
               />
             </div>

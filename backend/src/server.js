@@ -58,6 +58,12 @@ app.use((err, req, res, next) => {
 async function start() {
   try {
     await db.sequelize.authenticate();
+
+    if (db.ChatConversation && db.ChatMessage) {
+      await db.ChatConversation.sync();
+      await db.ChatMessage.sync();
+    }
+
     // eslint-disable-next-line no-console
     console.log('Database connected');
     httpServer.listen(env.port, () => {

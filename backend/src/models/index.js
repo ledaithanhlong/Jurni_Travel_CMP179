@@ -1,20 +1,22 @@
-import { Sequelize, DataTypes } from 'sequelize';
+import { DataTypes, Sequelize } from 'sequelize';
 import { env } from '../config/env.js';
 
 // Import models
-import UserModel from './user.js';
-import BookingModel from './booking.js';
 import ActivityModel from './activity.js';
-import FlightModel from './flight.js';
+import BookingModel from './booking.js';
 import CarModel from './car.js';
-import HotelModel from './hotel.js';
-import RoomModel from './room.js';
+import CareerValueModel from './careerValue.js';
+import ChatConversationModel from './chatConversation.js';
+import ChatMessageModel from './chatMessage.js';
+import FlightModel from './flight.js';
 import GalleryImageModel from './galleryImage.js';
+import HotelModel from './hotel.js';
 import NotificationModel from './notification.js';
+import RoomModel from './room.js';
 import TeamMemberModel from './teammember.js';
 import TestimonialModel from './testimonial.js';
+import UserModel from './user.js';
 import VoucherModel from './voucher.js';
-import CareerValueModel from './careerValue.js';
 
 // Create Sequelize instance
 const sequelize = new Sequelize(env.db.name, env.db.user, env.db.pass, {
@@ -59,6 +61,8 @@ db.TeamMember = TeamMemberModel(sequelize, DataTypes);
 db.Testimonial = TestimonialModel(sequelize, DataTypes);
 db.Voucher = VoucherModel(sequelize, DataTypes);
 db.CareerValue = CareerValueModel(sequelize, DataTypes);
+db.ChatConversation = ChatConversationModel(sequelize, DataTypes);
+db.ChatMessage = ChatMessageModel(sequelize, DataTypes);
 
 // Call associate methods to set up relationships
 Object.keys(db).forEach(modelName => {

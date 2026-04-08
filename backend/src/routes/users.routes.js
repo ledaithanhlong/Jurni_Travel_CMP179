@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { deleteUser, listUsers, updateUser, enableUser, updateUserRole, getUserStats } from '../controllers/users.controller.js';
+import { deleteUser, enableUser, getUserStats, listUsers, resetUserPassword, updateUser, updateUserRole } from '../controllers/users.controller.js';
 import { clerkAuth, requireRole } from '../middlewares/auth.js';
-import { UpdateUserValidator, UserIdValidator, validatedResult, UpdateRoleValidator } from '../middlewares/validator.js';
+import { UpdateRoleValidator, UpdateUserValidator, UserIdValidator, validatedResult } from '../middlewares/validator.js';
 
 const router = Router();
 
@@ -30,6 +30,15 @@ router.patch('/:id/role',
     UpdateRoleValidator,
     validatedResult,
     updateUserRole
+);
+
+// PATCH /users/:id/reset-password - Reset mật khẩu user và sinh password ngẫu nhiên (chỉ admin)
+router.patch('/:id/reset-password',
+    clerkAuth,
+    requireRole('admin'),
+    UserIdValidator,
+    validatedResult,
+    resetUserPassword
 );
 
 // DELETE /users/:id - Vô hiệu hóa người dùng (soft delete - chỉ admin)

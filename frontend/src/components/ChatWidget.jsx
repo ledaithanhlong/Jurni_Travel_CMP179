@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { getSafeUserInfo } from '../utils/auth.js';
 
@@ -9,7 +9,7 @@ const SOCKET_URL = API_URL.replace(/\/api$/, '');
 export default function ChatWidget() {
   // Safely get user info
   const userInfo = getSafeUserInfo();
-  
+
   const [isOpen, setIsOpen] = useState(false);
   const [chatType, setChatType] = useState(null); // null, 'ai', 'human'
   const [conversationId, setConversationId] = useState(null);
@@ -127,7 +127,7 @@ export default function ChatWidget() {
         body: JSON.stringify({
           customer_name: customerName,
           customer_email: customerEmail,
-          user_id: user?.id || null,
+          user_id: customerId && customerId !== 'guest' ? customerId : null,
           conversation_type: type,
         }),
       });

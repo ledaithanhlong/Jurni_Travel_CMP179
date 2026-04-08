@@ -1,3 +1,4 @@
+import { generateRandomPassword, hashPassword } from '../middlewares/passwordHelper.js';
 import db from '../models/index.js';
 
 export const listUsers = async (req, res, next) => {
@@ -76,6 +77,36 @@ export const enableUser = async (req, res, next) => {
   } catch (e) {
     console.error('Error in enableUser:', e);
     next(e);
+  }
+};
+
+export const resetUserPassword = async (req, res, next) => {
+  try {
+    const userId = req.params.id;
+    const user = await db.User.findByPk(userId);
+
+    if (!user) {
+      return res.status(404).json({ error: 'Không tìm thấy người dùng' });
+    }
+
+    const temporaryPassword = generateRandomPassword(10);
+    const hashedPassword = await hashPassword(temporaryPassword);
+
+    await user.update({ password: hashedPassword });
+
+    return res.json({
+      success: true,
+      message: 'Reset mật khẩu thành công',
+      data: {
+        id: user.id,
+        email: user.email,
+        temporaryPassword,
+        note: 'Mật khẩu tạm chỉ hiển thị 1 lần, vui lòng gửi ngay cho người dùng.'
+      }
+    });
+  } catch (e) {
+    console.error('Error in resetUserPassword:', e);
+    return next(e);
   }
 };
 

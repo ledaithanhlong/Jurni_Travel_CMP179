@@ -5,7 +5,7 @@ import { env } from '../config/env.js';
 
 const router = Router();
 
-// Sync Clerk user into DB and apply role via ADMIN_EMAILS
+// Sync Clerk user into DB. Role from ADMIN_EMAILS is only used on first creation.
 router.post('/sync-user', clerkAuth, requireAuth, async (req, res, next) => {
   try {
     console.log('POST /api/auth/sync-user called, auth:', !!req.auth, 'userId:', req.auth?.userId);
@@ -120,27 +120,25 @@ router.post('/sync-user', clerkAuth, requireAuth, async (req, res, next) => {
       }
     });
 
-    // Update if email, name or role changed
+    // Update profile fields only; role is managed in database by admin actions
     // Also update if user has temporary email and now has real email
     const hasTempEmail = user.email && user.email.includes('@pending.clerk');
     const needsUpdate = user.email !== email || 
                        user.name !== name || 
-                       (isAdmin && user.role !== 'admin') ||
-                       (!isAdmin && user.role === 'admin' && !env.adminEmails.includes(user.email)) ||
                        (hasTempEmail && email && !email.includes('@pending.clerk'));
     
     if (needsUpdate) {
       await user.update({ 
         email, 
-        name,
-        role: isAdmin ? 'admin' : 'user'
+        name
       });
       console.log('Updated user:', { 
         id: user.id, 
         oldEmail: hasTempEmail ? user.email : null,
         newEmail: email, 
-        name, 
-        role: isAdmin ? 'admin' : 'user' 
+        name,
+        role: user.role,
+        note: 'Role is preserved from database'
       });
     }
 

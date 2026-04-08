@@ -1,13 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { useUser } from '@clerk/clerk-react';
+import { getSafeUserInfo } from '../utils/auth.js';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 // Socket connects to base server URL (without /api path)
 const SOCKET_URL = API_URL.replace(/\/api$/, '');
 
 export default function ChatWidget() {
-  const { user } = useUser();
+  // Safely get user info
+  const userInfo = getSafeUserInfo();
+  
   const [isOpen, setIsOpen] = useState(false);
   const [chatType, setChatType] = useState(null); // null, 'ai', 'human'
   const [conversationId, setConversationId] = useState(null);
@@ -22,8 +24,9 @@ export default function ChatWidget() {
   const messagesEndRef = useRef(null);
   const typingTimeoutRef = useRef(null);
 
-  const customerName = user?.fullName || 'Khách';
-  const customerEmail = user?.primaryEmailAddress?.emailAddress || '';
+  const customerName = userInfo.name;
+  const customerEmail = userInfo.email;
+  const customerId = userInfo.id;
 
   // Initialize socket connection
   useEffect(() => {

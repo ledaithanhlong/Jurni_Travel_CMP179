@@ -9,7 +9,10 @@ const router = Router();
 
 router.post('/', clerkAuth, requireRole('admin'), upload.single('file'), async (req, res, next) => {
   try {
-    const result = await cloudinary.uploader.upload(req.file.path, { folder: 'traveloka-clone' });
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'traveloka-clone',
+      resource_type: 'auto'
+    });
     fs.unlinkSync(req.file.path);
     res.json({ url: result.secure_url, public_id: result.public_id });
   } catch (e) { next(e); }

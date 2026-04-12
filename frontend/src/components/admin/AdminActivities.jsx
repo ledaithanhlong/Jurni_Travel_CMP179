@@ -20,6 +20,7 @@ const emptyForm = {
   category: '',
   description: '',
   image_url: '',
+  media: [],
   highlights: [],
   includes: [],
   meeting_point: '',
@@ -31,6 +32,37 @@ const emptyForm = {
   }
 };
 
+const normalizeMedia = (items = []) => (
+  (Array.isArray(items) ? items : []).map((item, index) => ({
+    id: item.id,
+    tempId: item.tempId || `media-${item.id || index}-${Date.now()}`,
+    type: item.type || 'image',
+    url: item.url || '',
+    public_id: item.public_id || null,
+    caption: item.caption || '',
+    is_thumbnail: Boolean(item.is_thumbnail),
+    sort_order: Number.isInteger(item.sort_order) ? item.sort_order : index
+  }))
+);
+
+const getPrimaryMedia = (activity) => {
+  const media = Array.isArray(activity?.media) ? [...activity.media] : [];
+  media.sort((a, b) => {
+    if (Boolean(b.is_thumbnail) !== Boolean(a.is_thumbnail)) {
+      return Number(Boolean(b.is_thumbnail)) - Number(Boolean(a.is_thumbnail));
+    }
+    return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+  });
+
+  return media[0] || null;
+};
+
+const getPrimaryImageUrl = (activity) => {
+  const primaryMedia = getPrimaryMedia(activity);
+  if (primaryMedia?.type === 'image' && primaryMedia.url) return primaryMedia.url;
+  return activity?.image_url || '';
+};
+
 export default function AdminActivities() {
   const { getToken } = useAuth();
   const [activities, setActivities] = useState([]);
@@ -39,6 +71,7 @@ export default function AdminActivities() {
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [initialMedia, setInitialMedia] = useState([]);
 
   // Dynamic lists inputs
   const [newHighlight, setNewHighlight] = useState('');
@@ -51,7 +84,10 @@ export default function AdminActivities() {
   const loadActivities = async () => {
     try {
       const res = await axios.get(`${API}/activities`);
-      setActivities(res.data || []);
+      setActivities((res.data || []).map((activity) => ({
+        ...activity,
+        media: normalizeMedia(activity.media)
+      })));
     } catch (error) {
       console.error('Error loading activities:', error);
     } finally {
@@ -59,7 +95,7 @@ export default function AdminActivities() {
     }
   };
 
-  const handleImageUpload = async (e) => {
+  const handleMediaUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -77,13 +113,141 @@ export default function AdminActivities() {
       });
 
       if (res.data.url) {
-        setForm(prev => ({ ...prev, image_url: res.data.url }));
+        const type = file.type.startsWith('video/') ? 'video' : 'image';
+        setForm(prev => {
+          const currentMedia = normalizeMedia(prev.media);
+          const mediaItem = {
+            tempId: `media-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+            type,
+            url: res.data.url,
+            public_id: res.data.public_id || null,
+            caption: '',
+            is_thumbnail: currentMedia.length === 0,
+            sort_order: currentMedia.length
+          };
+
+          return {
+            ...prev,
+            image_url: type === 'image' && !prev.image_url ? res.data.url : prev.image_url,
+            media: [...currentMedia, mediaItem]
+          };
+        });
       }
     } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Lỗi khi upload hình ảnh');
+      console.error('Error uploading media:', error);
+      alert('Lỗi khi upload media');
     } finally {
       setUploading(false);
+      e.target.value = '';
+    }
+  };
+
+  const updateMediaItem = (tempId, field, value) => {
+    setForm(prev => ({
+      ...prev,
+      media: normalizeMedia(prev.media).map((item) => (
+        item.tempId === tempId ? { ...item, [field]: value } : item
+      ))
+    }));
+  };
+
+  const setMediaAsThumbnail = (tempId) => {
+    setForm(prev => ({
+      ...prev,
+      image_url: '',
+      media: normalizeMedia(prev.media).map((item) => ({
+        ...item,
+        is_thumbnail: item.tempId === tempId
+      }))
+    }));
+  };
+
+  const removeMediaItem = (tempId) => {
+    setForm(prev => {
+      const nextMedia = normalizeMedia(prev.media)
+        .filter((item) => item.tempId !== tempId)
+        .map((item, index) => ({ ...item, sort_order: index }));
+
+      if (nextMedia.length > 0 && !nextMedia.some((item) => item.is_thumbnail)) {
+        nextMedia[0].is_thumbnail = true;
+      }
+
+      return {
+        ...prev,
+        image_url: nextMedia[0]?.type === 'image' ? nextMedia[0].url : '',
+        media: nextMedia
+      };
+    });
+  };
+
+  const moveMediaItem = (tempId, direction) => {
+    setForm(prev => {
+      const items = [...normalizeMedia(prev.media)];
+      const index = items.findIndex((item) => item.tempId === tempId);
+      if (index === -1) return prev;
+
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= items.length) return prev;
+
+      [items[index], items[targetIndex]] = [items[targetIndex], items[index]];
+
+      return {
+        ...prev,
+        media: items.map((item, orderIndex) => ({ ...item, sort_order: orderIndex }))
+      };
+    });
+  };
+
+  const syncActivityMedia = async (activityId, token) => {
+    const currentMedia = normalizeMedia(form.media);
+    const removedMedia = initialMedia.filter(
+      (item) => item.id && !currentMedia.some((current) => current.id === item.id)
+    );
+
+    await Promise.all(
+      removedMedia.map((item) => axios.delete(`${API}/activities/${activityId}/media/${item.id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      }))
+    );
+
+    const savedMedia = [];
+    for (let index = 0; index < currentMedia.length; index += 1) {
+      const item = currentMedia[index];
+      const payload = {
+        type: item.type,
+        url: item.url,
+        public_id: item.public_id,
+        caption: item.caption || null,
+        is_thumbnail: Boolean(item.is_thumbnail),
+        sort_order: index
+      };
+
+      if (item.id) {
+        const res = await axios.put(`${API}/activities/${activityId}/media/${item.id}`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        savedMedia.push(res.data);
+      } else {
+        const res = await axios.post(`${API}/activities/${activityId}/media`, payload, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        savedMedia.push(res.data);
+      }
+    }
+
+    const thumbnail = savedMedia.find((item) => item.is_thumbnail);
+    if (thumbnail?.id) {
+      await axios.put(`${API}/activities/${activityId}/media/${thumbnail.id}/thumbnail`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    }
+
+    if (savedMedia.length > 0) {
+      await axios.put(`${API}/activities/${activityId}/media/reorder`, {
+        media: savedMedia.map((item, index) => ({ id: item.id, sort_order: index }))
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
     }
   };
 
@@ -148,27 +312,35 @@ export default function AdminActivities() {
         duration: form.duration || null,
         category: form.category || null,
         description: form.description || null,
-        image_url: form.image_url || null,
+        image_url: getPrimaryImageUrl(form) || form.image_url || null,
         includes: form.includes.length > 0 ? form.includes : null,
         meeting_point: form.meeting_point || null,
         policies: Object.values(form.policies).some(v => v) ? form.policies : null
       };
 
+      let savedActivity;
       if (editing) {
-        await axios.put(`${API}/activities/${editing}`, data, {
+        const res = await axios.put(`${API}/activities/${editing}`, data, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        savedActivity = res.data;
         alert('Cập nhật thành công!');
       } else {
-        await axios.post(`${API}/activities`, data, {
+        const res = await axios.post(`${API}/activities`, data, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        savedActivity = res.data;
         alert('Tạo thành công!');
+      }
+
+      if (savedActivity?.id) {
+        await syncActivityMedia(savedActivity.id, token);
       }
 
       setShowForm(false);
       setEditing(null);
       setForm(emptyForm);
+      setInitialMedia([]);
       loadActivities();
     } catch (error) {
       console.error('Error saving activity:', error);
@@ -177,6 +349,7 @@ export default function AdminActivities() {
   };
 
   const handleEdit = (activity) => {
+    const normalizedMedia = normalizeMedia(activity.media);
     setEditing(activity.id);
     setForm({
       name: activity.name || '',
@@ -185,7 +358,8 @@ export default function AdminActivities() {
       duration: activity.duration || '',
       category: activity.category || '',
       description: activity.description || '',
-      image_url: activity.image_url || '',
+      image_url: getPrimaryImageUrl(activity) || '',
+      media: normalizedMedia,
       highlights: Array.isArray(activity.highlights) ? activity.highlights : [],
       includes: Array.isArray(activity.includes) ? activity.includes : [],
       meeting_point: activity.meeting_point || '',
@@ -196,6 +370,7 @@ export default function AdminActivities() {
         children: ''
       }
     });
+    setInitialMedia(normalizedMedia);
     setShowForm(true);
   };
 
@@ -231,6 +406,7 @@ export default function AdminActivities() {
               setShowForm(true);
               setEditing(null);
               setForm(emptyForm);
+              setInitialMedia([]);
             }}
             className="bg-white text-blue-600 px-5 py-2 rounded-full font-semibold hover:bg-blue-50 transition"
           >
@@ -309,33 +485,95 @@ export default function AdminActivities() {
                 </div>
               </div>
 
-              {/* Image */}
+              {/* Media Library */}
               <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">🖼️ Hình ảnh</h4>
+                <h4 className="font-bold text-lg mb-4">🖼️ Thư viện hình ảnh & video</h4>
                 <div className="space-y-3">
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Upload file</label>
+                    <label className="text-xs text-gray-500 mb-1 block">Upload ảnh hoặc video</label>
                     <input
                       type="file"
-                      onChange={handleImageUpload}
-                      accept="image/*"
+                      onChange={handleMediaUpload}
+                      accept="image/*,video/*"
                       className="w-full border rounded-lg px-3 py-2"
                       disabled={uploading}
                     />
-                    {uploading && <p className="text-xs text-blue-600 mt-1">Đang upload...</p>}
+                    {uploading && <p className="text-xs text-blue-600 mt-1">Đang upload media...</p>}
                   </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Hoặc nhập URL</label>
-                    <input
-                      type="url"
-                      value={form.image_url}
-                      onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                      placeholder="https://example.com/image.jpg"
-                    />
-                  </div>
-                  {form.image_url && (
-                    <img src={form.image_url} alt="Preview" className="mt-2 h-32 w-auto object-contain rounded border" />
+                  {form.media.length === 0 ? (
+                    <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-sm text-gray-500">
+                      Chưa có media nào. Upload ảnh/video để tạo thư viện cho tour.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {form.media
+                        .slice()
+                        .sort((a, b) => a.sort_order - b.sort_order)
+                        .map((item, index) => (
+                          <div key={item.tempId} className="rounded-xl border border-gray-200 p-4">
+                            <div className="flex gap-4">
+                              <div className="w-32 h-24 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                                {item.type === 'video' ? (
+                                  <video src={item.url} className="w-full h-full object-cover" controls />
+                                ) : (
+                                  <img src={item.url} alt={item.caption || 'Media preview'} className="w-full h-full object-cover" />
+                                )}
+                              </div>
+                              <div className="flex-1 space-y-3">
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-2 py-1 rounded text-xs font-semibold ${item.type === 'video' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                    {item.type === 'video' ? 'Video' : 'Image'}
+                                  </span>
+                                  {item.is_thumbnail && (
+                                    <span className="px-2 py-1 rounded text-xs font-semibold bg-orange-100 text-orange-700">
+                                      Thumbnail
+                                    </span>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  value={item.caption}
+                                  onChange={(e) => updateMediaItem(item.tempId, 'caption', e.target.value)}
+                                  className="w-full border rounded-lg px-3 py-2"
+                                  placeholder="Nhập caption cho media"
+                                />
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => setMediaAsThumbnail(item.tempId)}
+                                    className="bg-orange-500 text-white px-3 py-2 rounded-lg text-sm hover:bg-orange-600"
+                                  >
+                                    Chọn làm ảnh đại diện
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveMediaItem(item.tempId, 'up')}
+                                    disabled={index === 0}
+                                    className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50"
+                                  >
+                                    Lên
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => moveMediaItem(item.tempId, 'down')}
+                                    disabled={index === form.media.length - 1}
+                                    className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm hover:bg-gray-200 disabled:opacity-50"
+                                  >
+                                    Xuống
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeMediaItem(item.tempId)}
+                                    className="bg-red-50 text-red-600 px-3 py-2 rounded-lg text-sm hover:bg-red-100"
+                                  >
+                                    Xóa
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
                   )}
                 </div>
               </div>
@@ -481,6 +719,7 @@ export default function AdminActivities() {
                     setShowForm(false);
                     setEditing(null);
                     setForm(emptyForm);
+                      setInitialMedia([]);
                   }}
                   className="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500"
                 >
@@ -509,11 +748,14 @@ export default function AdminActivities() {
                 <tr key={activity.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      {activity.image_url && (
-                        <img src={activity.image_url} alt={activity.name} className="w-16 h-16 object-cover rounded" />
+                      {getPrimaryImageUrl(activity) && (
+                        <img src={getPrimaryImageUrl(activity)} alt={activity.name} className="w-16 h-16 object-cover rounded" />
                       )}
                       <div>
                         <div className="font-semibold">{activity.name}</div>
+                        {Array.isArray(activity.media) && activity.media.length > 0 && (
+                          <div className="text-xs text-gray-500">{activity.media.length} media</div>
+                        )}
                         {activity.highlights && activity.highlights.length > 0 && (
                           <div className="text-xs text-gray-500">✨ {activity.highlights.length} điểm nổi bật</div>
                         )}

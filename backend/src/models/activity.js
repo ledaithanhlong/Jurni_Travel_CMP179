@@ -10,7 +10,11 @@ export default (sequelize, DataTypes) => {
     category: { type: DataTypes.STRING },
     includes: { type: DataTypes.JSON },
     meeting_point: { type: DataTypes.STRING },
-    policies: { type: DataTypes.JSON }
+    policies: { type: DataTypes.JSON },
+    itinerary: { type: DataTypes.JSON },        // [{day, title, description, activities[]}]
+    price_packages: { type: DataTypes.JSON },   // [{name, price, min_people, max_people, includes[]}]
+    terms: { type: DataTypes.TEXT },            // Điều khoản & lưu ý
+    notes: { type: DataTypes.TEXT }             // Ghi chú bổ sung
   }, {
     tableName: 'Activities',
     timestamps: true

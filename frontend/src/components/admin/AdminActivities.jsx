@@ -12,6 +12,14 @@ const CATEGORIES = [
   { value: 'Thể thao & Mạo hiểm', icon: '🏄', label: 'Thể thao & Mạo hiểm' }
 ];
 
+const TABS = [
+  { id: 'basic', label: '📋 Cơ bản' },
+  { id: 'itinerary', label: '🗓️ Lịch trình' },
+  { id: 'pricing', label: '💰 Giá gói' },
+  { id: 'policy', label: '📜 Chính sách' },
+  { id: 'terms', label: '📝 Điều khoản' },
+];
+
 const emptyForm = {
   name: '',
   location: '',
@@ -23,12 +31,19 @@ const emptyForm = {
   highlights: [],
   includes: [],
   meeting_point: '',
-  policies: {
-    cancel: '',
-    change: '',
-    weather: '',
-    children: ''
-  }
+  policies: { cancel: '', change: '', weather: '', children: '' },
+  itinerary: [],       // [{day, title, description, activities:[]}]
+  price_packages: [],  // [{name, price, min_people, max_people, includes:[]}]
+  terms: '',
+  notes: ''
+};
+
+// ─── helpers ────────────────────────────────────────────────────────────────
+const safeJson = (val) => {
+  if (!val) return null;
+  if (Array.isArray(val)) return val.length ? val : null;
+  if (typeof val === 'object') return val;
+  try { return JSON.parse(val); } catch { return null; }
 };
 
 export default function AdminActivities() {
@@ -39,14 +54,24 @@ export default function AdminActivities() {
   const [editing, setEditing] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState(emptyForm);
+  const [activeTab, setActiveTab] = useState('basic');
 
-  // Dynamic lists inputs
+  // Dynamic list inputs
   const [newHighlight, setNewHighlight] = useState('');
   const [newInclude, setNewInclude] = useState('');
 
-  useEffect(() => {
-    loadActivities();
-  }, []);
+  // Itinerary temp input
+  const [newDayTitle, setNewDayTitle] = useState('');
+  const [newDayDesc, setNewDayDesc] = useState('');
+  const [newDayActivity, setNewDayActivity] = useState('');
+  const [expandedDay, setExpandedDay] = useState(null);
+
+  // Pricing package temp input
+  const emptyPkg = { name: '', price: '', min_people: 1, max_people: 10, includes: [] };
+  const [newPkg, setNewPkg] = useState(emptyPkg);
+  const [newPkgInclude, setNewPkgInclude] = useState('');
+
+  useEffect(() => { loadActivities(); }, []);
 
   const loadActivities = async () => {
     try {
@@ -62,23 +87,15 @@ export default function AdminActivities() {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-
     setUploading(true);
     try {
       const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
-
       const res = await axios.post(UPLOAD_API, formData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data'
-        }
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
       });
-
-      if (res.data.url) {
-        setForm(prev => ({ ...prev, image_url: res.data.url }));
-      }
+      if (res.data.url) setForm(prev => ({ ...prev, image_url: res.data.url }));
     } catch (error) {
       console.error('Error uploading image:', error);
       alert('Lỗi khi upload hình ảnh');
@@ -87,60 +104,80 @@ export default function AdminActivities() {
     }
   };
 
+  // ── Highlight / Include helpers ────────────────────────────────────────────
   const addHighlight = () => {
-    if (newHighlight.trim()) {
-      setForm(prev => ({
-        ...prev,
-        highlights: [...prev.highlights, newHighlight.trim()]
-      }));
-      setNewHighlight('');
-    }
+    if (!newHighlight.trim()) return;
+    setForm(prev => ({ ...prev, highlights: [...prev.highlights, newHighlight.trim()] }));
+    setNewHighlight('');
   };
-
-  const removeHighlight = (index) => {
-    setForm(prev => ({
-      ...prev,
-      highlights: prev.highlights.filter((_, i) => i !== index)
-    }));
-  };
+  const removeHighlight = (idx) => setForm(prev => ({ ...prev, highlights: prev.highlights.filter((_, i) => i !== idx) }));
 
   const addInclude = () => {
-    if (newInclude.trim()) {
-      setForm(prev => ({
-        ...prev,
-        includes: [...prev.includes, newInclude.trim()]
-      }));
-      setNewInclude('');
-    }
+    if (!newInclude.trim()) return;
+    setForm(prev => ({ ...prev, includes: [...prev.includes, newInclude.trim()] }));
+    setNewInclude('');
   };
+  const removeInclude = (idx) => setForm(prev => ({ ...prev, includes: prev.includes.filter((_, i) => i !== idx) }));
 
-  const removeInclude = (index) => {
-    setForm(prev => ({
-      ...prev,
-      includes: prev.includes.filter((_, i) => i !== index)
-    }));
+  const updatePolicy = (field, value) => setForm(prev => ({ ...prev, policies: { ...prev.policies, [field]: value } }));
+
+  // ── Itinerary helpers ──────────────────────────────────────────────────────
+  const addDay = () => {
+    if (!newDayTitle.trim()) return;
+    const newEntry = {
+      day: form.itinerary.length + 1,
+      title: newDayTitle.trim(),
+      description: newDayDesc.trim(),
+      activities: []
+    };
+    setForm(prev => ({ ...prev, itinerary: [...prev.itinerary, newEntry] }));
+    setNewDayTitle(''); setNewDayDesc('');
+    setExpandedDay(form.itinerary.length);
   };
-
-  const updatePolicy = (field, value) => {
-    setForm(prev => ({
-      ...prev,
-      policies: {
-        ...prev.policies,
-        [field]: value
-      }
-    }));
+  const removeDay = (idx) => setForm(prev => ({
+    ...prev,
+    itinerary: prev.itinerary.filter((_, i) => i !== idx).map((d, i) => ({ ...d, day: i + 1 }))
+  }));
+  const addDayActivity = (dayIdx) => {
+    if (!newDayActivity.trim()) return;
+    setForm(prev => {
+      const updated = [...prev.itinerary];
+      updated[dayIdx] = { ...updated[dayIdx], activities: [...(updated[dayIdx].activities || []), newDayActivity.trim()] };
+      return { ...prev, itinerary: updated };
+    });
+    setNewDayActivity('');
   };
+  const removeDayActivity = (dayIdx, actIdx) => setForm(prev => {
+    const updated = [...prev.itinerary];
+    updated[dayIdx] = { ...updated[dayIdx], activities: updated[dayIdx].activities.filter((_, i) => i !== actIdx) };
+    return { ...prev, itinerary: updated };
+  });
 
+  // ── Pricing package helpers ────────────────────────────────────────────────
+  const addPkgInclude = () => {
+    if (!newPkgInclude.trim()) return;
+    setNewPkg(prev => ({ ...prev, includes: [...prev.includes, newPkgInclude.trim()] }));
+    setNewPkgInclude('');
+  };
+  const removePkgInclude = (idx) => setNewPkg(prev => ({ ...prev, includes: prev.includes.filter((_, i) => i !== idx) }));
+
+  const addPackage = () => {
+    if (!newPkg.name.trim() || !newPkg.price) return;
+    setForm(prev => ({ ...prev, price_packages: [...prev.price_packages, { ...newPkg, price: Number(newPkg.price) }] }));
+    setNewPkg(emptyPkg);
+    setNewPkgInclude('');
+  };
+  const removePackage = (idx) => setForm(prev => ({ ...prev, price_packages: prev.price_packages.filter((_, i) => i !== idx) }));
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!form.name || !form.location || !form.price) {
+      alert('Vui lòng nhập đủ thông tin bắt buộc!');
+      return;
+    }
     try {
       const token = await getToken();
-
-      if (!form.name || !form.location || !form.price) {
-        alert('Vui lòng nhập đủ thông tin bắt buộc!');
-        return;
-      }
-
       const data = {
         name: form.name,
         location: form.location,
@@ -151,24 +188,22 @@ export default function AdminActivities() {
         image_url: form.image_url || null,
         includes: form.includes.length > 0 ? form.includes : null,
         meeting_point: form.meeting_point || null,
-        policies: Object.values(form.policies).some(v => v) ? form.policies : null
+        policies: Object.values(form.policies).some(v => v) ? form.policies : null,
+        itinerary: form.itinerary.length > 0 ? form.itinerary : null,
+        price_packages: form.price_packages.length > 0 ? form.price_packages : null,
+        terms: form.terms || null,
+        notes: form.notes || null
       };
 
       if (editing) {
-        await axios.put(`${API}/activities/${editing}`, data, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.put(`${API}/activities/${editing}`, data, { headers: { Authorization: `Bearer ${token}` } });
         alert('Cập nhật thành công!');
       } else {
-        await axios.post(`${API}/activities`, data, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.post(`${API}/activities`, data, { headers: { Authorization: `Bearer ${token}` } });
         alert('Tạo thành công!');
       }
 
-      setShowForm(false);
-      setEditing(null);
-      setForm(emptyForm);
+      setShowForm(false); setEditing(null); setForm(emptyForm); setActiveTab('basic');
       loadActivities();
     } catch (error) {
       console.error('Error saving activity:', error);
@@ -189,13 +224,13 @@ export default function AdminActivities() {
       highlights: Array.isArray(activity.highlights) ? activity.highlights : [],
       includes: Array.isArray(activity.includes) ? activity.includes : [],
       meeting_point: activity.meeting_point || '',
-      policies: activity.policies || {
-        cancel: '',
-        change: '',
-        weather: '',
-        children: ''
-      }
+      policies: activity.policies || { cancel: '', change: '', weather: '', children: '' },
+      itinerary: Array.isArray(activity.itinerary) ? activity.itinerary : [],
+      price_packages: Array.isArray(activity.price_packages) ? activity.price_packages : [],
+      terms: activity.terms || '',
+      notes: activity.notes || ''
     });
+    setActiveTab('basic');
     setShowForm(true);
   };
 
@@ -203,23 +238,18 @@ export default function AdminActivities() {
     if (!confirm('Bạn có chắc chắn muốn xóa hoạt động này?')) return;
     try {
       const token = await getToken();
-      await axios.delete(`${API}/activities/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.delete(`${API}/activities/${id}`, { headers: { Authorization: `Bearer ${token}` } });
       loadActivities();
-    } catch (error) {
-      console.error('Error deleting activity:', error);
-    }
+    } catch (error) { console.error('Error deleting activity:', error); }
   };
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat('vi-VN').format(price || 0);
-  };
+  const formatPrice = (price) => new Intl.NumberFormat('vi-VN').format(price || 0);
 
   if (loading) return <div className="text-center py-8">Đang tải...</div>;
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-sky-600 text-white p-6 rounded-2xl shadow-lg">
         <div className="flex justify-between items-center">
           <div>
@@ -227,11 +257,7 @@ export default function AdminActivities() {
             <p className="text-white/80 mt-1">Tổng số: {activities.length} hoạt động</p>
           </div>
           <button
-            onClick={() => {
-              setShowForm(true);
-              setEditing(null);
-              setForm(emptyForm);
-            }}
+            onClick={() => { setShowForm(true); setEditing(null); setForm(emptyForm); setActiveTab('basic'); }}
             className="bg-white text-blue-600 px-5 py-2 rounded-full font-semibold hover:bg-blue-50 transition"
           >
             + Thêm hoạt động
@@ -240,250 +266,331 @@ export default function AdminActivities() {
       </div>
 
       <div className="bg-white rounded-2xl shadow border border-gray-100">
+        {/* ── FORM ── */}
         {showForm && (
           <div className="p-6 bg-white rounded-2xl shadow border border-gray-100 mb-6 max-h-[85vh] overflow-y-auto">
-            <h3 className="font-semibold text-xl mb-6">{editing ? 'Cập nhật hoạt động' : 'Thêm hoạt động mới'}</h3>
+            <h3 className="font-semibold text-xl mb-4">{editing ? 'Cập nhật hoạt động' : 'Thêm hoạt động mới'}</h3>
+
+            {/* Tab Bar */}
+            <div className="flex gap-1 mb-6 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+              {TABS.map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-white text-blue-600 shadow'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Basic Info */}
-              <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">📋 Thông tin cơ bản</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tên hoạt động *</label>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={(e) => setForm({ ...form, name: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                      placeholder="Tour Chùa Hương - Bái Đính"
-                      required
-                    />
+
+              {/* ════════ TAB: CƠ BẢN ════════ */}
+              {activeTab === 'basic' && (
+                <>
+                  <div className="border-b pb-6">
+                    <h4 className="font-bold text-lg mb-4">📋 Thông tin cơ bản</h4>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Tên hoạt động *</label>
+                        <input type="text" value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2" placeholder="Tour Chùa Hương – Bái Đính" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
+                        <input type="text" value={form.location} onChange={e => setForm({ ...form, location: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2" placeholder="Ninh Bình" required />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Giá cơ bản (VNĐ/người) *</label>
+                        <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2" required min="0" />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian</label>
+                        <input type="text" value={form.duration} onChange={e => setForm({ ...form, duration: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2" placeholder="Cả ngày, 3 giờ, 2N1Đ..." />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
+                        <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })} className="w-full border rounded-lg px-3 py-2">
+                          <option value="">- Chọn danh mục -</option>
+                          {CATEGORIES.map(cat => <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>)}
+                        </select>
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Địa điểm *</label>
-                    <input
-                      type="text"
-                      value={form.location}
-                      onChange={(e) => setForm({ ...form, location: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                      placeholder="Ninh Bình"
-                      required
-                    />
+
+                  {/* Image */}
+                  <div className="border-b pb-6">
+                    <h4 className="font-bold text-lg mb-4">🖼️ Hình ảnh</h4>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Upload file</label>
+                        <input type="file" onChange={handleImageUpload} accept="image/*" className="w-full border rounded-lg px-3 py-2" disabled={uploading} />
+                        {uploading && <p className="text-xs text-blue-600 mt-1">Đang upload...</p>}
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">Hoặc nhập URL</label>
+                        <input type="url" value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })}
+                          className="w-full border rounded-lg px-3 py-2" placeholder="https://example.com/image.jpg" />
+                      </div>
+                      {form.image_url && <img src={form.image_url} alt="Preview" className="mt-2 h-32 w-auto object-contain rounded border" />}
+                    </div>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Giá (VNĐ/người) *</label>
-                    <input
-                      type="number"
-                      value={form.price}
-                      onChange={(e) => setForm({ ...form, price: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                      required
-                      min="0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Thời gian</label>
-                    <input
-                      type="text"
-                      value={form.duration}
-                      onChange={(e) => setForm({ ...form, duration: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                      placeholder="Cả ngày, 3 giờ, 2N1Đ..."
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
-                    <select
-                      value={form.category}
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      <option value="">- Chọn danh mục -</option>
-                      {CATEGORIES.map(cat => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.icon} {cat.label}
-                        </option>
+
+                  {/* Highlights */}
+                  <div className="border-b pb-6">
+                    <h4 className="font-bold text-lg mb-4">✨ Điểm nổi bật</h4>
+                    <div className="flex gap-2 mb-3">
+                      <input type="text" value={newHighlight} onChange={e => setNewHighlight(e.target.value)}
+                        onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addHighlight())}
+                        className="flex-1 border rounded-lg px-3 py-2" placeholder="VD: Tham quan chùa Bái Đính" />
+                      <button type="button" onClick={addHighlight} className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600">Thêm</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {form.highlights.map((h, idx) => (
+                        <span key={idx} className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                          ✨ {h}
+                          <button type="button" onClick={() => removeHighlight(idx)} className="text-orange-600 hover:text-orange-800 font-bold">×</button>
+                        </span>
                       ))}
-                    </select>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Image */}
-              <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">🖼️ Hình ảnh</h4>
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Upload file</label>
-                    <input
-                      type="file"
-                      onChange={handleImageUpload}
-                      accept="image/*"
-                      className="w-full border rounded-lg px-3 py-2"
-                      disabled={uploading}
-                    />
-                    {uploading && <p className="text-xs text-blue-600 mt-1">Đang upload...</p>}
+                  {/* Inclusions */}
+                  <div className="border-b pb-6">
+                    <h4 className="font-bold text-lg mb-4">✅ Bao gồm</h4>
+                    <div className="flex gap-2 mb-3">
+                      <input type="text" value={newInclude} onChange={e => setNewInclude(e.target.value)}
+                        onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addInclude())}
+                        className="flex-1 border rounded-lg px-3 py-2" placeholder="VD: Xe du lịch đưa đón" />
+                      <button type="button" onClick={addInclude} className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600">Thêm</button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {form.includes.map((item, idx) => (
+                        <span key={idx} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
+                          ✓ {item}
+                          <button type="button" onClick={() => removeInclude(idx)} className="text-green-600 hover:text-green-800 font-bold">×</button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* Meeting Point */}
                   <div>
-                    <label className="text-xs text-gray-500 mb-1 block">Hoặc nhập URL</label>
-                    <input
-                      type="url"
-                      value={form.image_url}
-                      onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                      placeholder="https://example.com/image.jpg"
-                    />
+                    <h4 className="font-bold text-lg mb-4">📍 Điểm hẹn</h4>
+                    <input type="text" value={form.meeting_point} onChange={e => setForm({ ...form, meeting_point: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2" placeholder="123 Đường ABC, Quận 1, TP.HCM" />
                   </div>
-                  {form.image_url && (
-                    <img src={form.image_url} alt="Preview" className="mt-2 h-32 w-auto object-contain rounded border" />
+
+                  {/* Description */}
+                  <div>
+                    <h4 className="font-bold text-lg mb-4">📝 Mô tả chi tiết</h4>
+                    <textarea value={form.description} onChange={e => setForm({ ...form, description: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2" rows={4} placeholder="Mô tả chi tiết về hoạt động..." />
+                  </div>
+                </>
+              )}
+
+              {/* ════════ TAB: LỊCH TRÌNH ════════ */}
+              {activeTab === 'itinerary' && (
+                <div>
+                  <h4 className="font-bold text-lg mb-4">🗓️ Lịch trình theo ngày</h4>
+
+                  {/* Add Day */}
+                  <div className="bg-blue-50 rounded-xl p-4 mb-4 space-y-3">
+                    <p className="text-sm font-semibold text-blue-700">Thêm ngày mới</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input type="text" value={newDayTitle} onChange={e => setNewDayTitle(e.target.value)}
+                        className="border rounded-lg px-3 py-2" placeholder="Tiêu đề (VD: Ngày 1 – Hà Nội – Chùa Hương)" />
+                      <input type="text" value={newDayDesc} onChange={e => setNewDayDesc(e.target.value)}
+                        className="border rounded-lg px-3 py-2" placeholder="Mô tả tóm tắt (tuỳ chọn)" />
+                    </div>
+                    <button type="button" onClick={addDay}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-semibold">
+                      + Thêm ngày
+                    </button>
+                  </div>
+
+                  {/* Days list */}
+                  {form.itinerary.length === 0 && (
+                    <p className="text-gray-400 text-sm italic text-center py-6">Chưa có ngày nào. Thêm ngày ở trên.</p>
                   )}
-                </div>
-              </div>
-
-              {/* Highlights */}
-              <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">✨ Điểm nổi bật</h4>
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    value={newHighlight}
-                    onChange={(e) => setNewHighlight(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addHighlight())}
-                    className="flex-1 border rounded-lg px-3 py-2"
-                    placeholder="VD: Tham quan chùa Bái Đính"
-                  />
-                  <button
-                    type="button"
-                    onClick={addHighlight}
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600"
-                  >
-                    Thêm
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {form.highlights.map((highlight, idx) => (
-                    <span key={idx} className="bg-orange-100 text-orange-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                      ✨ {highlight}
-                      <button type="button" onClick={() => removeHighlight(idx)} className="text-orange-600 hover:text-orange-800 font-bold">×</button>
-                    </span>
+                  {form.itinerary.map((day, dayIdx) => (
+                    <div key={dayIdx} className="border rounded-xl mb-3 overflow-hidden">
+                      <div
+                        className="flex items-center justify-between bg-gray-50 px-4 py-3 cursor-pointer"
+                        onClick={() => setExpandedDay(expandedDay === dayIdx ? null : dayIdx)}
+                      >
+                        <span className="font-semibold text-gray-800">
+                          <span className="inline-flex w-7 h-7 bg-blue-600 text-white text-xs rounded-full items-center justify-center mr-2">{day.day}</span>
+                          {day.title}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-400">{(day.activities || []).length} hoạt động</span>
+                          <button type="button" onClick={e => { e.stopPropagation(); removeDay(dayIdx); }}
+                            className="text-red-400 hover:text-red-600 text-lg font-bold">×</button>
+                          <span className="text-gray-400">{expandedDay === dayIdx ? '▲' : '▼'}</span>
+                        </div>
+                      </div>
+                      {expandedDay === dayIdx && (
+                        <div className="p-4 space-y-3">
+                          {day.description && <p className="text-sm text-gray-600 italic">{day.description}</p>}
+                          <div className="space-y-1">
+                            {(day.activities || []).map((act, actIdx) => (
+                              <div key={actIdx} className="flex items-center gap-2 text-sm">
+                                <span className="w-2 h-2 bg-blue-400 rounded-full flex-shrink-0"></span>
+                                <span className="flex-1">{act}</span>
+                                <button type="button" onClick={() => removeDayActivity(dayIdx, actIdx)}
+                                  className="text-red-400 hover:text-red-600 font-bold">×</button>
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flex gap-2">
+                            <input type="text" value={newDayActivity} onChange={e => setNewDayActivity(e.target.value)}
+                              onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addDayActivity(dayIdx))}
+                              className="flex-1 border rounded-lg px-3 py-1.5 text-sm" placeholder="Thêm hoạt động trong ngày..." />
+                            <button type="button" onClick={() => addDayActivity(dayIdx)}
+                              className="bg-blue-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-blue-600">+ Thêm</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-              </div>
+              )}
 
-              {/* Inclusions */}
-              <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">✅ Bao gồm</h4>
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="text"
-                    value={newInclude}
-                    onChange={(e) => setNewInclude(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addInclude())}
-                    className="flex-1 border rounded-lg px-3 py-2"
-                    placeholder="VD: Xe du lịch đưa đón"
-                  />
-                  <button
-                    type="button"
-                    onClick={addInclude}
-                    className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600"
-                  >
-                    Thêm
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {form.includes.map((include, idx) => (
-                    <span key={idx} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm flex items-center gap-2">
-                      ✓ {include}
-                      <button type="button" onClick={() => removeInclude(idx)} className="text-green-600 hover:text-green-800 font-bold">×</button>
-                    </span>
-                  ))}
-                </div>
-              </div>
+              {/* ════════ TAB: GIÁ GÓI ════════ */}
+              {activeTab === 'pricing' && (
+                <div>
+                  <h4 className="font-bold text-lg mb-4">💰 Giá theo gói</h4>
 
-              {/* Meeting Point */}
-              <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">📍 Điểm hẹn</h4>
-                <input
-                  type="text"
-                  value={form.meeting_point}
-                  onChange={(e) => setForm({ ...form, meeting_point: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
-                  placeholder="123 Đường ABC, Quận 1, TP.HCM"
-                />
-              </div>
+                  {/* Add Package */}
+                  <div className="bg-green-50 rounded-xl p-4 mb-4 space-y-3">
+                    <p className="text-sm font-semibold text-green-700">Thêm gói giá mới</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <input type="text" value={newPkg.name} onChange={e => setNewPkg(p => ({ ...p, name: e.target.value }))}
+                        className="border rounded-lg px-3 py-2" placeholder="Tên gói (VD: Gói Tiêu chuẩn)" />
+                      <input type="number" value={newPkg.price} onChange={e => setNewPkg(p => ({ ...p, price: e.target.value }))}
+                        className="border rounded-lg px-3 py-2" placeholder="Giá (VNĐ/người)" min="0" />
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600 whitespace-nowrap">Số người tối thiểu:</label>
+                        <input type="number" value={newPkg.min_people} onChange={e => setNewPkg(p => ({ ...p, min_people: parseInt(e.target.value) || 1 }))}
+                          className="border rounded-lg px-3 py-2 w-20" min="1" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <label className="text-sm text-gray-600 whitespace-nowrap">Số người tối đa:</label>
+                        <input type="number" value={newPkg.max_people} onChange={e => setNewPkg(p => ({ ...p, max_people: parseInt(e.target.value) || 1 }))}
+                          className="border rounded-lg px-3 py-2 w-20" min="1" />
+                      </div>
+                    </div>
 
-              {/* Policies */}
-              <div className="border-b pb-6">
-                <h4 className="font-bold text-lg mb-4">📜 Chính sách</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Hủy tour</label>
-                    <textarea
-                      value={form.policies.cancel}
-                      onChange={(e) => updatePolicy('cancel', e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2"
-                      rows={2}
-                      placeholder="Miễn phí hủy trước 72h..."
-                    />
+                    {/* Package includes */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1">Bao gồm trong gói:</p>
+                      <div className="flex gap-2 mb-2">
+                        <input type="text" value={newPkgInclude} onChange={e => setNewPkgInclude(e.target.value)}
+                          onKeyPress={e => e.key === 'Enter' && (e.preventDefault(), addPkgInclude())}
+                          className="flex-1 border rounded-lg px-3 py-1.5 text-sm" placeholder="VD: Bữa sáng, Hướng dẫn viên..." />
+                        <button type="button" onClick={addPkgInclude} className="bg-green-500 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-green-600">+</button>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {newPkg.includes.map((inc, i) => (
+                          <span key={i} className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs flex items-center gap-1">
+                            {inc}
+                            <button type="button" onClick={() => removePkgInclude(i)} className="font-bold hover:text-green-900">×</button>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <button type="button" onClick={addPackage}
+                      className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm font-semibold">
+                      + Thêm gói
+                    </button>
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Đổi ngày</label>
-                    <textarea
-                      value={form.policies.change}
-                      onChange={(e) => updatePolicy('change', e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2"
-                      rows={2}
-                      placeholder="Có thể đổi trước 48h..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Thời tiết</label>
-                    <textarea
-                      value={form.policies.weather}
-                      onChange={(e) => updatePolicy('weather', e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2"
-                      rows={2}
-                      placeholder="Hoàn tiền nếu hủy do thời tiết..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Trẻ em</label>
-                    <textarea
-                      value={form.policies.children}
-                      onChange={(e) => updatePolicy('children', e.target.value)}
-                      className="w-full border rounded-lg px-3 py-2"
-                      rows={2}
-                      placeholder="Dưới 5 tuổi miễn phí..."
-                    />
+
+                  {/* Packages list */}
+                  {form.price_packages.length === 0 && (
+                    <p className="text-gray-400 text-sm italic text-center py-6">Chưa có gói nào. Thêm gói ở trên.</p>
+                  )}
+                  <div className="grid md:grid-cols-2 gap-4">
+                    {form.price_packages.map((pkg, idx) => (
+                      <div key={idx} className="border-2 border-green-200 rounded-xl p-4 relative">
+                        <button type="button" onClick={() => removePackage(idx)}
+                          className="absolute top-3 right-3 text-red-400 hover:text-red-600 font-bold text-lg">×</button>
+                        <div className="font-bold text-gray-900 mb-1">{pkg.name}</div>
+                        <div className="text-2xl font-extrabold text-green-600 mb-2">{new Intl.NumberFormat('vi-VN').format(pkg.price)} đ</div>
+                        <div className="text-xs text-gray-500 mb-2">{pkg.min_people}–{pkg.max_people} người</div>
+                        {pkg.includes && pkg.includes.length > 0 && (
+                          <ul className="space-y-1">
+                            {pkg.includes.map((inc, i) => (
+                              <li key={i} className="flex items-center gap-1.5 text-sm text-gray-700">
+                                <span className="text-green-500">✓</span> {inc}
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </div>
+              )}
 
-              {/* Description */}
-              <div>
-                <h4 className="font-bold text-lg mb-4">📝 Mô tả chi tiết</h4>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full border rounded-lg px-3 py-2"
-                  rows={4}
-                  placeholder="Mô tả chi tiết về hoạt động..."
-                />
-              </div>
+              {/* ════════ TAB: CHÍNH SÁCH ════════ */}
+              {activeTab === 'policy' && (
+                <div>
+                  <h4 className="font-bold text-lg mb-4">📜 Chính sách hoàn hủy</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    {[
+                      { key: 'cancel', label: 'Hủy tour', placeholder: 'Miễn phí hủy trước 72h...' },
+                      { key: 'change', label: 'Đổi ngày', placeholder: 'Có thể đổi trước 48h...' },
+                      { key: 'weather', label: 'Thời tiết', placeholder: 'Hoàn tiền nếu hủy do thời tiết...' },
+                      { key: 'children', label: 'Trẻ em', placeholder: 'Dưới 5 tuổi miễn phí...' },
+                    ].map(({ key, label, placeholder }) => (
+                      <div key={key}>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+                        <textarea value={form.policies[key]} onChange={e => updatePolicy(key, e.target.value)}
+                          className="w-full border rounded-lg px-3 py-2" rows={3} placeholder={placeholder} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
+              {/* ════════ TAB: ĐIỀU KHOẢN & LƯU Ý ════════ */}
+              {activeTab === 'terms' && (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-bold text-lg mb-2">📄 Điều khoản & Lưu ý khách hàng</h4>
+                    <p className="text-sm text-gray-500 mb-3">Nội dung điều khoản sẽ hiển thị cho khách trước khi đặt tour.</p>
+                    <textarea value={form.terms} onChange={e => setForm({ ...form, terms: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2 font-mono text-sm" rows={8}
+                      placeholder="1. Khách vui lòng có mặt đúng giờ...\n2. Mang theo CCCD/hộ chiếu...\n3. Không mang thức ăn có mùi mạnh..." />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg mb-2">🗒️ Ghi chú bổ sung</h4>
+                    <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                      className="w-full border rounded-lg px-3 py-2" rows={4}
+                      placeholder="Lưu ý thêm dành cho khách hàng..." />
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
               <div className="flex gap-2 pt-4 border-t">
                 <button type="submit" className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700">
                   {editing ? 'Lưu thay đổi' : 'Tạo mới'}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForm(false);
-                    setEditing(null);
-                    setForm(emptyForm);
-                  }}
-                  className="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500"
-                >
+                <button type="button" onClick={() => { setShowForm(false); setEditing(null); setForm(emptyForm); setActiveTab('basic'); }}
+                  className="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500">
                   Hủy
                 </button>
               </div>
@@ -491,7 +598,7 @@ export default function AdminActivities() {
           </div>
         )}
 
-        {/* Activities Table */}
+        {/* ── Activities Table ── */}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
@@ -500,6 +607,7 @@ export default function AdminActivities() {
                 <th className="px-6 py-3 text-left">Địa điểm</th>
                 <th className="px-6 py-3 text-left">Thời gian</th>
                 <th className="px-6 py-3 text-left">Danh mục</th>
+                <th className="px-6 py-3 text-left">Chi tiết</th>
                 <th className="px-6 py-3 text-left">Giá</th>
                 <th className="px-6 py-3 text-left">Thao tác</th>
               </tr>
@@ -531,9 +639,20 @@ export default function AdminActivities() {
                       <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{activity.category}</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 text-orange-600 font-bold">
-                    {formatPrice(activity.price)} đ
+                  <td className="px-6 py-4">
+                    <div className="flex flex-col gap-1">
+                      {activity.itinerary && Array.isArray(activity.itinerary) && activity.itinerary.length > 0 && (
+                        <span className="text-xs bg-sky-100 text-sky-700 px-2 py-0.5 rounded-full">🗓️ {activity.itinerary.length} ngày</span>
+                      )}
+                      {activity.price_packages && Array.isArray(activity.price_packages) && activity.price_packages.length > 0 && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">💰 {activity.price_packages.length} gói</span>
+                      )}
+                      {activity.terms && (
+                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">📄 Điều khoản</span>
+                      )}
+                    </div>
                   </td>
+                  <td className="px-6 py-4 text-orange-600 font-bold">{formatPrice(activity.price)} đ</td>
                   <td className="px-6 py-4">
                     <button onClick={() => handleEdit(activity)} className="text-blue-600 mr-3 hover:text-blue-800">Sửa</button>
                     <button onClick={() => handleDelete(activity.id)} className="text-red-500 hover:text-red-700">Xóa</button>

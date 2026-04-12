@@ -11,6 +11,327 @@ import {
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// ─── Helper: safely parse JSON field ──────────────────────────────────────────
+function safeArr(val) {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+}
+
+// ─── ActivityDetailModal ───────────────────────────────────────────────────────
+function ActivityDetailModal({ activity, onClose, onBook, tourDate, setTourDate, participants, setParticipants, formatPrice }) {
+  const [activeTab, setActiveTab] = useState('info');
+  const [expandedDay, setExpandedDay] = useState(0);
+  const [expandedTerms, setExpandedTerms] = useState(false);
+  const [selectedPkg, setSelectedPkg] = useState(null);
+
+  const itinerary = safeArr(activity.itinerary);
+  const pricePackages = safeArr(activity.price_packages);
+  const includes = safeArr(activity.includes);
+
+  let policies = activity.policies;
+  if (typeof policies === 'string') { try { policies = JSON.parse(policies); } catch { policies = null; } }
+
+  const tabs = [
+    { id: 'info', label: 'Thông tin' },
+    ...(itinerary.length > 0 ? [{ id: 'itinerary', label: 'Lịch trình' }] : []),
+    ...(pricePackages.length > 0 ? [{ id: 'pricing', label: 'Giá gói' }] : []),
+    ...((policies && Object.values(policies).some(Boolean)) ? [{ id: 'policy', label: 'Chính sách' }] : []),
+    ...((activity.terms || activity.notes) ? [{ id: 'terms', label: 'Điều khoản' }] : []),
+  ];
+
+  const effectivePrice = selectedPkg ? selectedPkg.price : activity.price;
+
+  const handleBook = () => {
+    onBook({ ...activity, price: effectivePrice, selectedPackage: selectedPkg });
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div className="sticky top-0 bg-white border-b border-gray-100 px-6 py-4 rounded-t-3xl flex justify-between items-start z-10">
+          <div className="flex-1 pr-4">
+            <h2 className="text-2xl font-bold text-gray-900 leading-tight">{activity.name}</h2>
+            <div className="flex flex-wrap items-center gap-3 mt-2">
+              {activity.location && (
+                <span className="flex items-center gap-1 text-sm text-gray-500">
+                  <IconLocation className="w-4 h-4 text-blue-500" /> {activity.location}
+                </span>
+              )}
+              {activity.duration && (
+                <span className="flex items-center gap-1 text-sm text-gray-500">
+                  <IconClock className="w-4 h-4 text-blue-500" /> {activity.duration}
+                </span>
+              )}
+              {activity.category && (
+                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full font-medium">{activity.category}</span>
+              )}
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl flex-shrink-0 mt-1">×</button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1">
+          {/* Hero image */}
+          {activity.image_url && (
+            <img src={activity.image_url} alt={activity.name} className="w-full h-52 object-cover" />
+          )}
+
+          {/* Tab Bar */}
+          <div className="px-6 pt-4">
+            <div className="flex gap-1 bg-gray-100 rounded-xl p-1 overflow-x-auto">
+              {tabs.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+                  className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    activeTab === tab.id ? 'bg-white text-blue-600 shadow' : 'text-gray-500 hover:text-gray-700'
+                  }`}>
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-6 py-4 space-y-6">
+
+            {/* ── Tab: Thông tin ── */}
+            {activeTab === 'info' && (
+              <>
+                {/* Price */}
+                <div className="flex items-end gap-3">
+                  <div className="text-4xl font-extrabold" style={{ color: '#FF6B35' }}>
+                    {formatPrice(effectivePrice)} <span className="text-xl font-medium text-gray-400">VND</span>
+                  </div>
+                  <span className="text-gray-500 mb-1">/ người</span>
+                </div>
+
+                {/* Description */}
+                {activity.description && (
+                  <p className="text-gray-600 leading-relaxed">{activity.description}</p>
+                )}
+
+                {/* Includes */}
+                {includes.length > 0 && (
+                  <div>
+                    <h4 className="font-bold text-gray-900 mb-3">Bao gồm</h4>
+                    <div className="grid md:grid-cols-2 gap-2">
+                      {includes.map((item, i) => (
+                        <div key={i} className="flex items-center gap-2 bg-green-50 rounded-lg px-3 py-2">
+                          <span className="text-green-600 font-bold flex-shrink-0">✓</span>
+                          <span className="text-sm text-gray-700">{item}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Meeting point */}
+                {activity.meeting_point && (
+                  <div className="bg-blue-50 rounded-xl p-4">
+                    <div className="font-semibold text-gray-900 text-sm mb-1">Điểm hẹn</div>
+                    <div className="text-gray-600 text-sm">{activity.meeting_point}</div>
+                    <div className="text-xs text-blue-600 mt-1">Vui lòng có mặt trước 15 phút</div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* ── Tab: Lịch trình ── */}
+            {activeTab === 'itinerary' && (
+              <div className="space-y-3">
+                {itinerary.map((day, idx) => (
+                  <div key={idx} className={`border-2 rounded-2xl overflow-hidden transition-all ${expandedDay === idx ? 'border-blue-400 shadow-md' : 'border-gray-200'}`}>
+                    <button
+                      className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                      onClick={() => setExpandedDay(expandedDay === idx ? -1 : idx)}
+                    >
+                      <div className="flex-shrink-0 w-10 h-10 bg-gradient-to-br from-blue-600 to-sky-500 text-white rounded-full flex items-center justify-center font-bold text-sm shadow">
+                        {day.day}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-semibold text-gray-900">{day.title}</div>
+                        {day.description && <div className="text-xs text-gray-500 mt-0.5">{day.description}</div>}
+                      </div>
+                      <span className="text-gray-400 text-sm">{expandedDay === idx ? '▲' : '▼'}</span>
+                    </button>
+                    {expandedDay === idx && day.activities && day.activities.length > 0 && (
+                      <div className="px-5 pb-4 space-y-2 border-t border-gray-100">
+                        {day.activities.map((act, i) => (
+                          <div key={i} className="flex items-start gap-3 py-2">
+                            <div className="flex-shrink-0 w-2 h-2 mt-2 rounded-full bg-blue-400"></div>
+                            <span className="text-sm text-gray-700">{act}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Tab: Giá gói ── */}
+            {activeTab === 'pricing' && (
+              <div>
+                <p className="text-sm text-gray-500 mb-4">Chọn gói phù hợp với nhóm của bạn</p>
+                <div className="grid md:grid-cols-2 gap-4">
+                  {pricePackages.map((pkg, idx) => (
+                    <button key={idx} type="button" onClick={() => setSelectedPkg(pkg)}
+                      className={`text-left border-2 rounded-2xl p-5 transition-all ${
+                        selectedPkg?.name === pkg.name
+                          ? 'border-orange-500 bg-orange-50 shadow-lg'
+                          : 'border-gray-200 hover:border-orange-300 hover:bg-orange-50/50'
+                      }`}>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="font-bold text-gray-900">{pkg.name}</div>
+                        {selectedPkg?.name === pkg.name && (
+                          <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">✓ Đã chọn</span>
+                        )}
+                      </div>
+                      <div className="text-2xl font-extrabold text-orange-600 mb-2">
+                        {formatPrice(pkg.price)} <span className="text-sm font-medium text-gray-400">đ/người</span>
+                      </div>
+                      <div className="text-xs text-gray-500 mb-3">{pkg.min_people}–{pkg.max_people} người</div>
+                      {pkg.includes && pkg.includes.length > 0 && (
+                        <ul className="space-y-1">
+                          {pkg.includes.map((inc, i) => (
+                            <li key={i} className="flex items-center gap-1.5 text-sm text-gray-700">
+                              <span className="text-green-500 font-bold">✓</span> {inc}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                {selectedPkg && (
+                  <div className="mt-3 text-center text-sm text-green-600 font-semibold">
+                    ✓ Đã chọn: {selectedPkg.name} – {formatPrice(selectedPkg.price)} đ/người
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Tab: Chính sách ── */}
+            {activeTab === 'policy' && policies && (
+              <div className="space-y-4">
+                {[
+                  { key: 'cancel', label: 'Hủy đặt tour', color: 'blue' },
+                  { key: 'change', label: 'Đổi ngày', color: 'green' },
+                  { key: 'weather', label: 'Thời tiết', color: 'yellow' },
+                  { key: 'children', label: 'Trẻ em', color: 'purple' },
+                ].map(({ key, label, color }) => policies[key] ? (
+                  <div key={key} className={`border-l-4 border-${color}-500 pl-4 py-2`}>
+                    <div className="font-semibold text-gray-900 mb-1">{label}</div>
+                    <div className="text-sm text-gray-600 whitespace-pre-line">{policies[key]}</div>
+                  </div>
+                ) : null)}
+              </div>
+            )}
+
+            {/* ── Tab: Điều khoản ── */}
+            {activeTab === 'terms' && (
+              <div className="space-y-6">
+                {activity.terms && (
+                  <div>
+                    <button
+                      className="w-full flex items-center justify-between font-bold text-gray-900 mb-3"
+                      onClick={() => setExpandedTerms(!expandedTerms)}
+                    >
+                      <span>Điều khoản & Lưu ý</span>
+                      <span className="text-gray-400">{expandedTerms ? '▲' : '▼'}</span>
+                    </button>
+                    {expandedTerms && (
+                      <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 whitespace-pre-line leading-relaxed">
+                        {activity.terms}
+                      </div>
+                    )}
+                    {!expandedTerms && (
+                      <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 line-clamp-4 cursor-pointer" onClick={() => setExpandedTerms(true)}>
+                        {activity.terms}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {activity.notes && (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                    <div className="font-semibold text-yellow-800 mb-2">Ghi chú bổ sung</div>
+                    <div className="text-sm text-yellow-700 whitespace-pre-line">{activity.notes}</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Booking Form */}
+            <div className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl p-5 border-2 border-orange-200">
+              <h3 className="text-lg font-bold text-gray-900 mb-4">Thông tin đặt tour</h3>
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Ngày khởi hành *</label>
+                  <input type="date" value={tourDate} onChange={e => setTourDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full border-2 border-orange-300 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Số người tham gia *</label>
+                  <div className="flex items-center gap-3">
+                    <button type="button" onClick={() => setParticipants(Math.max(1, participants - 1))}
+                      className="w-10 h-10 rounded-lg bg-orange-500 text-white font-bold hover:bg-orange-600 transition">-</button>
+                    <input type="number" value={participants} onChange={e => setParticipants(Math.max(1, parseInt(e.target.value) || 1))}
+                      min="1" className="w-20 border-2 border-orange-300 rounded-lg px-3 py-2 text-center font-bold focus:outline-none focus:border-orange-500" />
+                    <button type="button" onClick={() => setParticipants(participants + 1)}
+                      className="w-10 h-10 rounded-lg bg-orange-500 text-white font-bold hover:bg-orange-600 transition">+</button>
+                    <span className="text-sm text-gray-600">người</span>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-orange-300 flex justify-between items-center">
+                <span className="text-lg font-semibold text-gray-700">Tổng tiền:</span>
+                <div className="text-right">
+                  <div className="text-3xl font-extrabold" style={{ color: '#FF6B35' }}>
+                    {formatPrice(effectivePrice * participants)} VND
+                  </div>
+                  <div className="text-xs text-gray-500">{formatPrice(effectivePrice)} × {participants} người
+                    {selectedPkg && ` • Gói: ${selectedPkg.name}`}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Contact + Book */}
+            <div id="lien-he" className="bg-gradient-to-r from-blue-600 to-sky-600 rounded-2xl p-5 text-white">
+              <h3 className="text-lg font-bold mb-4">Liên Hệ & Đặt Tour</h3>
+              <div className="grid md:grid-cols-2 gap-3 mb-4">
+                <a href="tel:1900123456" className="flex flex-col bg-white/20 rounded-xl p-3 hover:bg-white/30 transition">
+                  <div className="text-xs text-blue-100">Hotline</div><div className="font-semibold text-sm">1900 123 456</div>
+                </a>
+                <a href="mailto:activities@jurni.com" className="flex flex-col bg-white/20 rounded-xl p-3 hover:bg-white/30 transition">
+                  <div className="text-xs text-blue-100">Email</div><div className="font-semibold text-sm">activities@jurni.com</div>
+                </a>
+              </div>
+              <button className="w-full bg-white px-6 py-3 rounded-full font-bold transition-all hover:scale-105"
+                style={{ color: '#FF6B35' }} onClick={handleBook}
+                onMouseEnter={e => e.currentTarget.style.backgroundColor = '#FFE8E0'}
+                onMouseLeave={e => e.currentTarget.style.backgroundColor = '#FFFFFF'}>
+                {selectedPkg ? `Đặt với gói "${selectedPkg.name}"` : 'Đặt tour ngay'}
+              </button>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 export default function ActivitiesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -364,260 +685,18 @@ export default function ActivitiesPage() {
       </section >
 
       {/* Detail Modal */}
-      {
-        selectedActivity && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={handleCloseModal}>
-            <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex justify-between items-center">
-                <h2 className="text-2xl font-bold text-gray-900">{selectedActivity.name}</h2>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 text-2xl"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="p-6 space-y-6">
-                {selectedActivity.image_url && (
-                  <img
-                    src={selectedActivity.image_url}
-                    alt={selectedActivity.name}
-                    className="w-full h-64 object-cover rounded-xl"
-                  />
-                )}
-                <div>
-                  <div className="mb-4">
-                    <div className="text-3xl font-bold mb-2" style={{ color: '#FF6B35' }}>
-                      {formatPrice(selectedActivity.price)} VND
-                    </div>
-                    <div className="text-gray-600">/ người</div>
-                  </div>
-                  <div className="space-y-3 mb-4">
-                    <div className="flex items-center gap-2 text-gray-700">
-                      <IconLocation className="w-5 h-5 text-blue-600" />
-                      <span className="font-medium">Địa điểm: {selectedActivity.city}</span>
-                    </div>
-                    {selectedActivity.duration && (
-                      <div className="flex items-center gap-2 text-gray-700">
-                        <IconClock className="w-5 h-5 text-blue-600" />
-                        <span className="font-medium">Thời gian: {selectedActivity.duration}</span>
-                      </div>
-                    )}
-                    {selectedActivity.category && (
-                      <div className="flex items-center gap-2">
-                        <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-sm font-medium">
-                          {selectedActivity.category}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  {selectedActivity.description && (
-                    <p className="text-gray-700 mb-4">{selectedActivity.description}</p>
-                  )}
-                </div>
-
-                {/* Booking Form */}
-                <div className="mb-6 bg-gradient-to-br from-orange-50 to-yellow-50 rounded-xl p-6 border-2 border-orange-200">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">📅 Thông tin đặt tour</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Ngày khởi hành *
-                      </label>
-                      <input
-                        type="date"
-                        value={tourDate}
-                        onChange={(e) => setTourDate(e.target.value)}
-                        min={new Date().toISOString().split('T')[0]}
-                        className="w-full border-2 border-orange-300 rounded-lg px-4 py-3 focus:outline-none focus:border-orange-500"
-                        required
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Số người tham gia *
-                      </label>
-                      <div className="flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setParticipants(Math.max(1, participants - 1))}
-                          className="w-10 h-10 rounded-lg bg-orange-500 text-white font-bold hover:bg-orange-600 transition"
-                        >
-                          -
-                        </button>
-                        <input
-                          type="number"
-                          value={participants}
-                          onChange={(e) => setParticipants(Math.max(1, parseInt(e.target.value) || 1))}
-                          min="1"
-                          className="w-20 border-2 border-orange-300 rounded-lg px-3 py-2 text-center font-bold focus:outline-none focus:border-orange-500"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setParticipants(participants + 1)}
-                          className="w-10 h-10 rounded-lg bg-orange-500 text-white font-bold hover:bg-orange-600 transition"
-                        >
-                          +
-                        </button>
-                        <span className="text-sm text-gray-600">người</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mt-4 pt-4 border-t border-orange-300">
-                    <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold text-gray-700">Tổng tiền:</span>
-                      <div className="text-right">
-                        <div className="text-3xl font-extrabold" style={{ color: '#FF6B35' }}>
-                          {formatPrice(selectedActivity.price * participants)} VND
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {formatPrice(selectedActivity.price)} × {participants} người
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Includes */}
-                {selectedActivity.includes && (() => {
-                  let includes = selectedActivity.includes;
-
-                  // Parse if string
-                  if (typeof includes === 'string') {
-                    try {
-                      includes = JSON.parse(includes);
-                      if (typeof includes === 'string') includes = JSON.parse(includes);
-                    } catch (e) {
-                      console.error('Error parsing includes:', e);
-                      return null;
-                    }
-                  }
-
-                  if (!Array.isArray(includes) || includes.length === 0) return null;
-
-                  return (
-                    <div className="mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">Bao gồm</h3>
-                      <div className="grid md:grid-cols-2 gap-3">
-                        {includes.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-3 bg-blue-50 rounded-lg p-3">
-                            <IconCheck className="w-5 h-5 text-green-600 flex-shrink-0" />
-                            <span className="text-gray-700">{item}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Meeting Point */}
-                {selectedActivity.meetingPoint && (
-                  <div className="mb-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-4">Điểm hẹn</h3>
-                    <div className="bg-gray-50 rounded-lg p-4">
-                      <div className="flex items-start gap-3">
-                        <IconLocation className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-gray-900">{selectedActivity.meetingPoint}</div>
-                          <div className="text-sm text-gray-600 mt-1">Vui lòng có mặt trước 15 phút</div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Policies */}
-                {selectedActivity.policies && (() => {
-                  let policies = selectedActivity.policies;
-
-                  // Parse if string
-                  if (typeof policies === 'string') {
-                    try {
-                      policies = JSON.parse(policies);
-                      if (typeof policies === 'string') policies = JSON.parse(policies);
-                    } catch (e) {
-                      console.error('Error parsing policies:', e);
-                      return null;
-                    }
-                  }
-
-                  if (!policies || typeof policies !== 'object' || Array.isArray(policies)) return null;
-
-                  return (
-                    <div className="mb-6">
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">Chính Sách</h3>
-                      <div className="space-y-4">
-                        {policies.cancel && (
-                          <div className="border-l-4 border-blue-500 pl-4">
-                            <div className="font-semibold text-gray-900 mb-1">Hủy đặt tour</div>
-                            <div className="text-sm text-gray-600">{policies.cancel}</div>
-                          </div>
-                        )}
-                        {policies.change && (
-                          <div className="border-l-4 border-green-500 pl-4">
-                            <div className="font-semibold text-gray-900 mb-1">Đổi ngày</div>
-                            <div className="text-sm text-gray-600">{policies.change}</div>
-                          </div>
-                        )}
-                        {policies.weather && (
-                          <div className="border-l-4 border-yellow-500 pl-4">
-                            <div className="font-semibold text-gray-900 mb-1">Thời tiết</div>
-                            <div className="text-sm text-gray-600">{policies.weather}</div>
-                          </div>
-                        )}
-                        {policies.children && (
-                          <div className="border-l-4 border-purple-500 pl-4">
-                            <div className="font-semibold text-gray-900 mb-1">Trẻ em</div>
-                            <div className="text-sm text-gray-600">{policies.children}</div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Contact */}
-                <div id="lien-he" className="bg-gradient-to-r from-blue-600 to-sky-600 rounded-xl p-6 text-white">
-                  <h3 className="text-xl font-bold mb-4">Liên Hệ Đặt Tour</h3>
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <a href="tel:1900123456" className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-lg p-4 hover:bg-white/30 transition">
-                      <IconPhone />
-                      <div>
-                        <div className="text-sm text-blue-100">Hotline</div>
-                        <div className="font-semibold">1900 123 456</div>
-                      </div>
-                    </a>
-                    <a href="mailto:activities@jurni.com" className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-lg p-4 hover:bg-white/30 transition">
-                      <IconMail />
-                      <div>
-                        <div className="text-sm text-blue-100">Email</div>
-                        <div className="font-semibold">activities@jurni.com</div>
-                      </div>
-                    </a>
-                    <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-lg p-4">
-                      <IconLocation />
-                      <div>
-                        <div className="text-sm text-blue-100">Địa chỉ</div>
-                        <div className="font-semibold">123 Đường ABC, Quận XYZ, TP.HCM</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3 bg-white/20 backdrop-blur-sm rounded-lg p-4">
-                      <IconShield />
-                      <div>
-                        <div className="text-sm text-blue-100">Hỗ trợ</div>
-                        <div className="font-semibold">24/7 - Tất cả các ngày</div>
-                      </div>
-                    </div>
-                  </div>
-                  <button className="mt-4 w-full bg-white px-6 py-3 rounded-full font-semibold transition" style={{ color: '#FF6B35' }} onClick={() => handleBookActivity(selectedActivity)} onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#FFE8E0'} onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#FFFFFF'}>
-                    Đặt tour ngay
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )
-      }
+      {selectedActivity && (
+        <ActivityDetailModal
+          activity={selectedActivity}
+          onClose={handleCloseModal}
+          onBook={handleBookActivity}
+          tourDate={tourDate}
+          setTourDate={setTourDate}
+          participants={participants}
+          setParticipants={setParticipants}
+          formatPrice={formatPrice}
+        />
+      )}
     </div >
   );
 }

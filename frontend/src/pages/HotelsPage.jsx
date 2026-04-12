@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { sampleHotels } from '../data/mockData';
 import { HotelCard } from '../components/ServiceCards';
@@ -12,8 +13,8 @@ import {
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function HotelsPage() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState([]);
-  const [selectedHotel, setSelectedHotel] = useState(null);
   const [q, setQ] = useState('');
 
   const load = async () => {
@@ -329,7 +330,7 @@ export default function HotelsPage() {
                 <div
                   key={hotel.id}
                   className="group bg-white rounded-3xl shadow-lg border-2 border-gray-100 hover:border-orange-500 hover:shadow-2xl transition-all duration-300 overflow-hidden cursor-pointer flex flex-col h-full"
-                  onClick={() => setSelectedHotel(hotel)}
+                  onClick={() => navigate(`/hotels/${hotel.id}`)}
                 >
                   {hotel.image_url && (
                     <div className="relative h-64 overflow-hidden flex-shrink-0">
@@ -342,7 +343,7 @@ export default function HotelsPage() {
                         <IconStar className="w-4 h-4 text-yellow-500 fill-current" />
                         <span className="font-bold text-gray-900">{hotel.star_rating || 4}</span>
                       </div>
-                      <div className="absolute top-4 left-4">
+                      <div className="absolute top-4 left-4" onClick={e => e.stopPropagation()}>
                         <FavoriteButton
                           serviceType="hotel"
                           serviceId={hotel.id}
@@ -404,146 +405,6 @@ export default function HotelsPage() {
         </div>
       </section>
 
-      {/* Detail Modal */}
-      {selectedHotel && (
-        <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto"
-          onClick={() => setSelectedHotel(null)}
-        >
-          <div
-            className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl my-8"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-sky-600 text-white p-6 flex justify-between items-center z-10">
-              <h2 className="text-2xl font-bold">Chi tiết khách sạn</h2>
-              <button
-                onClick={() => setSelectedHotel(null)}
-                className="text-white hover:text-orange-100 text-3xl font-bold w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/20 transition"
-              >
-                ×
-              </button>
-            </div>
-            <div className="p-6">
-              {selectedHotel.image_url && (
-                <img
-                  src={selectedHotel.image_url}
-                  alt={selectedHotel.name}
-                  className="w-full h-80 object-cover rounded-2xl mb-6"
-                />
-              )}
-              <div className="mb-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-3xl font-bold text-gray-900">{selectedHotel.name}</h3>
-                  <div className="flex items-center gap-1 bg-yellow-50 px-4 py-2 rounded-full">
-                    <IconStar className="w-5 h-5 text-yellow-500 fill-current" />
-                    <span className="font-bold text-gray-900">{selectedHotel.star_rating || 4} sao</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 text-gray-600 mb-4">
-                  <IconLocation className="w-5 h-5" />
-                  <span>{selectedHotel.location}</span>
-                </div>
-                <div className="text-3xl font-extrabold text-blue-600 mb-6">
-                  {formatPrice(selectedHotel.price)} VND <span className="text-lg text-gray-500 font-normal">/ đêm</span>
-                </div>
-                {selectedHotel.description && (
-                  <p className="text-gray-700 leading-relaxed mb-6">{selectedHotel.description}</p>
-                )}
-              </div>
-
-              {selectedHotel.amenities && selectedHotel.amenities.length > 0 && (
-                <div className="mb-6">
-                  <h4 className="text-xl font-bold text-gray-900 mb-4">Tiện nghi</h4>
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {selectedHotel.amenities.map((amenity, idx) => (
-                      <div key={idx} className="flex items-center gap-3 bg-blue-50 rounded-xl p-4">
-                        <IconCheck className="w-5 h-5 text-blue-600 flex-shrink-0" />
-                        <span className="text-gray-700 font-medium">{amenity}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              <div className="grid md:grid-cols-2 gap-6 mb-6">
-                <div className="bg-blue-50 rounded-xl p-6">
-                  <h4 className="font-bold text-gray-900 mb-2">Check-in / Check-out</h4>
-                  <div className="text-gray-700">
-                    <div>Check-in: {selectedHotel.checkIn || '14:00'}</div>
-                    <div>Check-out: {selectedHotel.checkOut || '12:00'}</div>
-                  </div>
-                </div>
-                <div className="bg-blue-50 rounded-xl p-6">
-                  <h4 className="font-bold text-gray-900 mb-2">Thông tin phòng</h4>
-                  <div className="text-gray-700">
-                    <div>Tổng số phòng: {selectedHotel.rooms || 'N/A'}</div>
-                  </div>
-                </div>
-              </div>
-
-              {selectedHotel.policies && (
-                <div className="mb-6">
-                  <h4 className="text-xl font-bold text-gray-900 mb-4">Chính sách</h4>
-                  <div className="space-y-3">
-                    {selectedHotel.policies.cancel && (
-                      <div className="flex items-start gap-3 bg-gray-50 rounded-xl p-4">
-                        <IconCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-gray-900 mb-1">Hủy đặt phòng</div>
-                          <div className="text-gray-600 text-sm">{selectedHotel.policies.cancel}</div>
-                        </div>
-                      </div>
-                    )}
-                    {selectedHotel.policies.children && (
-                      <div className="flex items-start gap-3 bg-gray-50 rounded-xl p-4">
-                        <IconCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-gray-900 mb-1">Trẻ em</div>
-                          <div className="text-gray-600 text-sm">{selectedHotel.policies.children}</div>
-                        </div>
-                      </div>
-                    )}
-                    {selectedHotel.policies.pets && (
-                      <div className="flex items-start gap-3 bg-gray-50 rounded-xl p-4">
-                        <IconCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-gray-900 mb-1">Thú cưng</div>
-                          <div className="text-gray-600 text-sm">{selectedHotel.policies.pets}</div>
-                        </div>
-                      </div>
-                    )}
-                    {selectedHotel.policies.smoking && (
-                      <div className="flex items-start gap-3 bg-gray-50 rounded-xl p-4">
-                        <IconCheck className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <div className="font-semibold text-gray-900 mb-1">Hút thuốc</div>
-                          <div className="text-gray-600 text-sm">{selectedHotel.policies.smoking}</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="flex gap-4 pt-6 border-t border-gray-200">
-                <button
-                  onClick={() => setSelectedHotel(null)}
-                  className="flex-1 bg-gray-100 text-gray-700 py-3 rounded-full font-semibold hover:bg-gray-200 transition"
-                >
-                  Đóng
-                </button>
-                <a
-                  href={`/hotels/${selectedHotel.id}`}
-                  className="flex-1 text-white py-3 rounded-full font-semibold hover:scale-105 transition-all duration-300 shadow-lg text-center"
-                  style={{ background: 'linear-gradient(to right, #FF6B35, #FF8C42)' }}
-                >
-                  Đặt phòng ngay
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

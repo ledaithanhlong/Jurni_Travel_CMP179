@@ -38,6 +38,7 @@ export default (sequelize, DataTypes) => {
     Booking.belongsTo(models.Flight, { foreignKey: 'flight_id', as: 'flight' });
     Booking.belongsTo(models.Car, { foreignKey: 'car_id', as: 'car' });
     Booking.belongsTo(models.Activity, { foreignKey: 'activity_id', as: 'activity' });
+    Booking.hasOne(models.Review, { foreignKey: 'booking_id', as: 'review' });
   };
 
   return Booking;

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Link } from 'react-router-dom';
@@ -27,27 +27,88 @@ export default function BookingsPage() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [reviewModal, setReviewModal] = useState({ open: false, booking: null });
+    const [reviewRating, setReviewRating] = useState(5);
+    const [reviewComment, setReviewComment] = useState('');
+    const [reviewSubmitting, setReviewSubmitting] = useState(false);
+    const [reviewError, setReviewError] = useState(null);
+    const [reviewSuccess, setReviewSuccess] = useState(null);
+
+    const canReview = useCallback((booking) => {
+        return booking?.status === 'completed' && !booking?.review;
+    }, []);
+
+    const openReviewModal = useCallback((booking) => {
+        setReviewModal({ open: true, booking });
+        setReviewRating(5);
+        setReviewComment('');
+        setReviewError(null);
+        setReviewSuccess(null);
+    }, []);
+
+    const closeReviewModal = useCallback(() => {
+        setReviewModal({ open: false, booking: null });
+        setReviewError(null);
+        setReviewSuccess(null);
+    }, []);
+
+    const serviceLabel = useMemo(() => {
+        return {
+            hotel: 'Khách sạn',
+            flight: 'Vé máy bay',
+            car: 'Cho thuê xe',
+            activity: 'Hoạt động'
+        };
+    }, []);
+
+    const fetchBookings = useCallback(async () => {
+        try {
+            setLoading(true);
+            const token = await getToken();
+            const res = await axios.get(`${API}/bookings`, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+            setBookings(res.data);
+        } catch (err) {
+            console.error(err);
+            setError('Không thể tải lịch sử đặt chỗ.');
+        } finally {
+            setLoading(false);
+        }
+    }, [getToken]);
 
     useEffect(() => {
         if (!isLoaded || !isSignedIn) return;
-
-        const fetchBookings = async () => {
-            try {
-                const token = await getToken();
-                const res = await axios.get(`${API}/bookings`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                setBookings(res.data);
-            } catch (err) {
-                console.error(err);
-                setError('Không thể tải lịch sử đặt chỗ.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchBookings();
-    }, [isLoaded, isSignedIn, getToken]);
+    }, [isLoaded, isSignedIn, fetchBookings]);
+
+    const submitReview = useCallback(async () => {
+        const booking = reviewModal.booking;
+        if (!booking) return;
+
+        try {
+            setReviewSubmitting(true);
+            setReviewError(null);
+            setReviewSuccess(null);
+
+            const token = await getToken();
+            await axios.post(`${API}/reviews`, {
+                booking_id: booking.id,
+                rating: reviewRating,
+                comment: reviewComment
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            setReviewSuccess('Đã gửi đánh giá. Nội dung sẽ hiển thị sau khi được duyệt.');
+            await fetchBookings();
+        } catch (err) {
+            const message = err?.response?.data?.error || err?.response?.data?.message || 'Không thể gửi đánh giá.';
+            setReviewError(message);
+        } finally {
+            setReviewSubmitting(false);
+        }
+    }, [fetchBookings, getToken, reviewComment, reviewModal.booking, reviewRating]);
 
     if (!isLoaded) return null;
 
@@ -162,7 +223,21 @@ export default function BookingsPage() {
                                     {/* Footer Actions (Optional) */}
                                     <div className="bg-gray-50 px-6 py-3 flex justify-between items-center text-sm">
                                         <span className="text-gray-500">Cần hỗ trợ? <Link to="/support" className="text-blue-600 font-medium hover:underline">Liên hệ</Link></span>
-                                        {/* <button className="text-blue-600 font-semibold hover:underline">Xem chi tiết</button> */}
+                                        <div className="flex items-center gap-2">
+                                            {booking.review && (
+                                                <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
+                                                    Đã đánh giá ({booking.review.status === 'approved' ? 'Đã duyệt' : booking.review.status === 'hidden' ? 'Đã ẩn' : 'Chờ duyệt'})
+                                                </span>
+                                            )}
+                                            {canReview(booking) && (
+                                                <button
+                                                    onClick={() => openReviewModal(booking)}
+                                                    className="text-blue-600 font-semibold hover:underline"
+                                                >
+                                                    Đánh giá
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
                             );
@@ -170,6 +245,86 @@ export default function BookingsPage() {
                     </div>
                 )}
             </div>
+
+            {reviewModal.open && reviewModal.booking && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40" onClick={closeReviewModal} />
+                    <div className="relative w-full max-w-xl bg-white rounded-2xl shadow-2xl border border-gray-100 p-6">
+                        <div className="flex items-start justify-between gap-4 mb-4">
+                            <div>
+                                <h2 className="text-xl font-bold text-gray-900">Đánh giá & Bình luận</h2>
+                                <p className="text-sm text-gray-500 mt-1">
+                                    {serviceLabel[reviewModal.booking.service_type] || reviewModal.booking.service_type} • #{reviewModal.booking.id}
+                                </p>
+                            </div>
+                            <button
+                                onClick={closeReviewModal}
+                                className="p-2 rounded-lg hover:bg-gray-100 text-gray-500"
+                            >
+                                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <div className="mb-5">
+                            <p className="text-sm font-semibold text-gray-700 mb-2">Xếp hạng</p>
+                            <div className="flex items-center gap-1">
+                                {[1, 2, 3, 4, 5].map(v => (
+                                    <button
+                                        key={v}
+                                        onClick={() => setReviewRating(v)}
+                                        className={`text-2xl leading-none transition ${v <= reviewRating ? 'text-yellow-500' : 'text-gray-300'}`}
+                                        aria-label={`Chọn ${v} sao`}
+                                    >
+                                        ★
+                                    </button>
+                                ))}
+                                <span className="ml-2 text-sm text-gray-600">{reviewRating}/5</span>
+                            </div>
+                        </div>
+
+                        <div className="mb-5">
+                            <label className="text-sm font-semibold text-gray-700">Nhận xét</label>
+                            <textarea
+                                value={reviewComment}
+                                onChange={(e) => setReviewComment(e.target.value)}
+                                rows={4}
+                                className="mt-2 w-full rounded-xl border-2 border-gray-200 px-4 py-3 focus:border-blue-500 focus:outline-none"
+                                placeholder="Chia sẻ trải nghiệm của bạn..."
+                            />
+                        </div>
+
+                        {reviewError && (
+                            <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                                {reviewError}
+                            </div>
+                        )}
+                        {reviewSuccess && (
+                            <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm">
+                                {reviewSuccess}
+                            </div>
+                        )}
+
+                        <div className="flex items-center justify-end gap-3">
+                            <button
+                                onClick={closeReviewModal}
+                                className="px-4 py-2 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition"
+                                disabled={reviewSubmitting}
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                onClick={submitReview}
+                                className="px-5 py-2 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition disabled:opacity-60"
+                                disabled={reviewSubmitting}
+                            >
+                                {reviewSubmitting ? 'Đang gửi...' : 'Gửi đánh giá'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

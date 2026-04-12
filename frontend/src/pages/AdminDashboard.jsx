@@ -9,6 +9,7 @@ import AdminActivities from '../components/admin/AdminActivities.jsx';
 import AdminHotels from '../components/admin/AdminHotels.jsx';
 import AdminVouchers from '../components/admin/AdminVouchers.jsx';
 import AdminBookings from '../components/admin/AdminBookings.jsx';
+import AdminReviews from '../components/admin/AdminReviews.jsx';
 import NotificationSender from '../components/NotificationSender.jsx';
 import {
   LayoutDashboard,
@@ -19,6 +20,7 @@ import {
   Compass,
   Ticket,
   FileText,
+  Star,
   Menu,
   X,
   TrendingUp,
@@ -192,6 +194,7 @@ export default function AdminDashboard() {
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'bookings', label: 'Đặt chỗ', icon: FileText },
     { id: 'users', label: 'Người dùng', icon: Users },
+    { id: 'reviews', label: 'Đánh giá', icon: Star },
     { id: 'hotels', label: 'Khách sạn', icon: Hotel },
     { id: 'flights', label: 'Chuyến bay', icon: Plane },
     { id: 'cars', label: 'Xe cho thuê', icon: Car },
@@ -473,6 +476,7 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
               {activeTab === 'bookings' && <AdminBookings />}
               {activeTab === 'users' && <AdminUsers />}
+              {activeTab === 'reviews' && <AdminReviews />}
               {activeTab === 'hotels' && <AdminHotels />}
               {activeTab === 'flights' && <AdminFlights />}
               {activeTab === 'cars' && <AdminCars />}

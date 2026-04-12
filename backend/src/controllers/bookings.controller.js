@@ -17,6 +17,7 @@ export const getBooking = async (req, res, next) => {
         { model: db.Flight, as: 'flight' },
         { model: db.Car, as: 'car' },
         { model: db.Activity, as: 'activity' },
+        { model: db.Review, as: 'review' },
         { model: db.User, as: 'user', attributes: ['id', 'name', 'email'] }
       ]
     });
@@ -54,6 +55,7 @@ export const getAllBookings = async (req, res, next) => {
         { model: db.Flight, as: 'flight' },
         { model: db.Car, as: 'car' },
         { model: db.Activity, as: 'activity' },
+        { model: db.Review, as: 'review' },
         ...(userRole === 'admin' ? [{ model: db.User, as: 'user', attributes: ['id', 'name', 'email'] }] : [])
       ]
     });

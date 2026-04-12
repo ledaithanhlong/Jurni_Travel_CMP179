@@ -18,6 +18,7 @@ export default (sequelize, DataTypes) => {
 
   Activity.associate = (models) => {
     Activity.hasMany(models.Booking, { foreignKey: 'activity_id', as: 'bookings' });
+    Activity.hasMany(models.ActivityMedia, { foreignKey: 'activity_id', as: 'media' });
   };
 
   return Activity;

@@ -98,12 +98,21 @@ export function ActivityCard({ activity, onClick }) {
                         <span className="text-content-muted text-sm">Chưa có ảnh</span>
                     </div>
                 )}
-                {activity.category && (
-                    /* Category badge — 30% secondary */
-                    <div className="absolute top-4 left-4 badge-primary shadow-md">
-                        {activity.category}
-                    </div>
-                )}
+                <div className="absolute top-4 left-4 flex flex-wrap gap-1">
+                    {activity.categories && activity.categories.length > 0 ? (
+                        activity.categories.map(cat => (
+                            <div key={cat.id} className="badge-primary shadow-md text-[10px] px-2 py-0.5">
+                                {cat.icon} {cat.name}
+                            </div>
+                        ))
+                    ) : (
+                        activity.category && (
+                            <div className="badge-primary shadow-md text-[10px] px-2 py-0.5">
+                                {activity.category}
+                            </div>
+                        )
+                    )}
+                </div>
                 <div className="absolute top-4 right-4">
                     <FavoriteButton
                         serviceType="activity"

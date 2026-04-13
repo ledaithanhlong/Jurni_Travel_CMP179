@@ -251,7 +251,7 @@ export default function App({ clerkEnabled }) {
         </Routes>
 
       </main>
-      <ChatWidget />
+      <ChatWidget clerkEnabled={clerkEnabled} />
       {/* Hide footer on admin page */}
       {location.pathname !== '/admin' && (
         <footer className="text-white" style={{ backgroundColor: '#0D47A1' }}>

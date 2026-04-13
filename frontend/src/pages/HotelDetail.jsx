@@ -48,6 +48,8 @@ export default function HotelDetail() {
   const navigate = useNavigate();
   const [hotel, setHotel] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState({ items: [], count: 0, average_rating: 0 });
+  const [reviewsLoading, setReviewsLoading] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [selectedRoomType, setSelectedRoomType] = useState(null);
   const [booking, setBooking] = useState({
@@ -74,6 +76,24 @@ export default function HotelDetail() {
     };
     loadHotel();
   }, [id, navigate]);
+
+  useEffect(() => {
+    const loadReviews = async () => {
+      try {
+        setReviewsLoading(true);
+        const res = await axios.get(`${API}/reviews`, {
+          params: { service_type: 'hotel', service_id: id }
+        });
+        setReviews(res.data || { items: [], count: 0, average_rating: 0 });
+      } catch (error) {
+        setReviews({ items: [], count: 0, average_rating: 0 });
+      } finally {
+        setReviewsLoading(false);
+      }
+    };
+
+    if (id) loadReviews();
+  }, [id]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN').format(price || 0);
@@ -413,6 +433,53 @@ export default function HotelDetail() {
                   </div>
                 </div>
               )}
+
+              <div className="mt-10 pt-8 border-t border-gray-100">
+                <div className="flex items-start justify-between gap-4 mb-6">
+                  <div>
+                    <h3 className="text-2xl font-bold text-gray-900">Đánh giá & Bình luận</h3>
+                    <p className="text-sm text-gray-500 mt-1">Chỉ hiển thị đánh giá đã được duyệt</p>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-3xl font-extrabold text-gray-900">{Number(reviews.average_rating || 0).toFixed(1)}</div>
+                    <div className="text-sm text-gray-500">{reviews.count || 0} đánh giá</div>
+                  </div>
+                </div>
+
+                {reviewsLoading ? (
+                  <div className="space-y-3">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+                    ))}
+                  </div>
+                ) : (reviews.items || []).length === 0 ? (
+                  <div className="text-center py-10 bg-gray-50 rounded-2xl border border-gray-100">
+                    <p className="font-semibold text-gray-800">Chưa có đánh giá nào</p>
+                    <p className="text-sm text-gray-500 mt-1">Nếu bạn đã hoàn thành chuyến đi, hãy vào “Đặt chỗ của tôi” để viết nhận xét.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {(reviews.items || []).slice(0, 6).map((r) => (
+                      <div key={r.id} className="bg-gray-50 rounded-2xl border border-gray-100 p-5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="font-bold text-gray-900 truncate">{r.user?.name || 'Khách hàng'}</p>
+                            <p className="text-xs text-gray-500 mt-1">{new Date(r.createdAt).toLocaleDateString('vi-VN')}</p>
+                          </div>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {[1, 2, 3, 4, 5].map(v => (
+                              <span key={v} className={v <= Number(r.rating) ? 'text-yellow-500' : 'text-gray-300'}>★</span>
+                            ))}
+                          </div>
+                        </div>
+                        {r.comment && (
+                          <p className="text-gray-700 mt-3 whitespace-pre-wrap">{r.comment}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

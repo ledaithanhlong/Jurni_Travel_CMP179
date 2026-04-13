@@ -19,6 +19,7 @@ import adminRouter from './admin.routes.js';
 import chatRouter from './chat.routes.js';
 import supportRouter from './support.routes.js';
 import categoriesRouter from './categories.routes.js';
+import reviewsRouter from './reviews.routes.js';
 
 const router = Router();
 
@@ -42,6 +43,7 @@ router.use('/admin', adminRouter);
 router.use('/chat', chatRouter);
 router.use('/support-requests', supportRouter);
 router.use('/categories', categoriesRouter);
+router.use('/reviews', reviewsRouter);
 
 export default router;
 

@@ -201,6 +201,9 @@ export default function TeamPage() {
             // Upload blob to server
             const uploadData = new FormData();
             uploadData.append('file', croppedImageBlob, 'cropped-image.jpg');
+            uploadData.append('category', 'team');
+            uploadData.append('entity_type', 'team');
+            if (editingMember?.id) uploadData.append('entity_id', String(editingMember.id));
 
             const token = await getToken();
             const res = await axios.post(`${API}/upload`, uploadData, {

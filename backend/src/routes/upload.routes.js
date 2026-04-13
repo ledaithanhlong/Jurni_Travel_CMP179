@@ -3,6 +3,7 @@ import multer from 'multer';
 import cloudinary from '../config/cloudinary.js';
 import { clerkAuth, requireRole } from '../middlewares/auth.js';
 import fs from 'fs';
+import db from '../models/index.js';
 
 const upload = multer({ dest: 'tmp/' });
 const router = Router();
@@ -14,6 +15,14 @@ router.post('/', clerkAuth, requireRole('admin'), upload.single('file'), async (
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
 
+    const category = req.body?.category ? String(req.body.category) : 'other';
+    const entity_type = req.body?.entity_type ? String(req.body.entity_type) : null;
+    const parsedEntityId = req.body?.entity_id !== undefined && req.body?.entity_id !== null && req.body?.entity_id !== ''
+      ? Number(req.body.entity_id)
+      : null;
+    const entity_id = Number.isFinite(parsedEntityId) ? parsedEntityId : null;
+    const created_by = req.user?.id || null;
+
     if (env.cloudinary && env.cloudinary.cloudName) {
       // Use Cloudinary if configured
       const result = await cloudinary.uploader.upload(req.file.path, {
@@ -21,6 +30,17 @@ router.post('/', clerkAuth, requireRole('admin'), upload.single('file'), async (
         resource_type: 'auto'
       });
       fs.unlinkSync(req.file.path);
+      try {
+        await db.MediaAsset.create({
+          url: result.secure_url,
+          public_id: result.public_id,
+          category,
+          entity_type,
+          entity_id,
+          created_by
+        });
+      } catch {
+      }
       return res.json({ url: result.secure_url, public_id: result.public_id });
     } else {
       // Fallback to local storage if Cloudinary is not configured
@@ -37,7 +57,17 @@ router.post('/', clerkAuth, requireRole('admin'), upload.single('file'), async (
       const host = req.get('host');
       const protocol = req.protocol;
       const fileUrl = `${protocol}://${host}/uploads/${fileName}`;
-      
+      try {
+        await db.MediaAsset.create({
+          url: fileUrl,
+          public_id: fileName,
+          category,
+          entity_type,
+          entity_id,
+          created_by
+        });
+      } catch {
+      }
       return res.json({ url: fileUrl, public_id: fileName });
     }
   } catch (e) {

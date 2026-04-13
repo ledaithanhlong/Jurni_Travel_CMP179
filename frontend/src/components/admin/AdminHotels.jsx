@@ -150,6 +150,9 @@ export default function AdminHotels() {
       const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('category', 'hotel');
+      formData.append('entity_type', 'hotel');
+      if (editing) formData.append('entity_id', String(editing));
 
       const res = await axios.post(UPLOAD_API, formData, {
         headers: {
@@ -182,6 +185,9 @@ export default function AdminHotels() {
       const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('category', 'hotel');
+      formData.append('entity_type', 'hotel');
+      if (editing) formData.append('entity_id', String(editing));
 
       const res = await axios.post(UPLOAD_API, formData, {
         headers: {

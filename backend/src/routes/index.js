@@ -20,6 +20,7 @@ import chatRouter from './chat.routes.js';
 import supportRouter from './support.routes.js';
 import categoriesRouter from './categories.routes.js';
 import reviewsRouter from './reviews.routes.js';
+import mediaRouter from './media.routes.js';
 
 const router = Router();
 
@@ -44,6 +45,7 @@ router.use('/chat', chatRouter);
 router.use('/support-requests', supportRouter);
 router.use('/categories', categoriesRouter);
 router.use('/reviews', reviewsRouter);
+router.use('/media', mediaRouter);
 
 export default router;
 

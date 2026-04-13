@@ -65,21 +65,31 @@ router.post('/', clerkAuth, requireRole('admin'), upload.single('file'), async (
 
           for (const prevPublicId of prevPublicIds) {
             if (prevPublicId && prevPublicId !== result.public_id) {
-            try {
-              await cloudinary.uploader.destroy(prevPublicId);
-            } catch {
+              try {
+                await cloudinary.uploader.destroy(prevPublicId);
+              } catch (err) {
+                // log but continue
+                // eslint-disable-next-line no-console
+                console.error('Failed to destroy previous Cloudinary asset', prevPublicId, err);
+              }
             }
           }
-          }
         } else {
-          await db.MediaAsset.create({
-            url: result.secure_url,
-            public_id: result.public_id,
-            category,
-            entity_type,
-            entity_id,
-            created_by
-          });
+          try {
+            await db.MediaAsset.create({
+              url: result.secure_url,
+              public_id: result.public_id,
+              category,
+              entity_type,
+              entity_id,
+              created_by
+            });
+          } catch (err) {
+            // log and rethrow so outer catch handles cleanup
+            // eslint-disable-next-line no-console
+            console.error('Failed to create MediaAsset (Cloudinary path):', err);
+            throw err;
+          }
         }
       } catch {
       }
@@ -133,23 +143,32 @@ router.post('/', clerkAuth, requireRole('admin'), upload.single('file'), async (
 
           for (const prevPublicId of prevPublicIds) {
             if (prevPublicId && prevPublicId !== fileName) {
-            try {
-              const projectRoot = path.join(process.cwd());
-              const oldPath = path.join(projectRoot, 'uploads', prevPublicId);
-              if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
-            } catch {
+              try {
+                const projectRoot = path.join(process.cwd());
+                const oldPath = path.join(projectRoot, 'uploads', prevPublicId);
+                if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+              } catch (err) {
+                // log but continue
+                // eslint-disable-next-line no-console
+                console.error('Failed to remove previous local upload', prevPublicId, err);
+              }
             }
           }
-          }
         } else {
-          await db.MediaAsset.create({
-            url: fileUrl,
-            public_id: fileName,
-            category,
-            entity_type,
-            entity_id,
-            created_by
-          });
+          try {
+            await db.MediaAsset.create({
+              url: fileUrl,
+              public_id: fileName,
+              category,
+              entity_type,
+              entity_id,
+              created_by
+            });
+          } catch (err) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to create MediaAsset (local storage):', err);
+            throw err;
+          }
         }
       } catch {
       }

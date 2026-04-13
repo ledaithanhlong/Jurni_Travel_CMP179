@@ -15,6 +15,10 @@ router.get('/', clerkAuth, requireRole('admin'), async (req, res, next) => {
     const where = {};
     if (category && category !== 'all') where.category = String(category);
 
+    // Debug log: show requested category/limit/offset
+    // eslint-disable-next-line no-console
+    console.log('GET /api/v1/media - query:', { category, limit, offset, where });
+
     const rows = await db.MediaAsset.findAll({
       where,
       order: [['createdAt', 'DESC']],
@@ -24,6 +28,8 @@ router.get('/', clerkAuth, requireRole('admin'), async (req, res, next) => {
     });
 
     const count = await db.MediaAsset.count({ where });
+    // eslint-disable-next-line no-console
+    console.log(`Media rows found: ${rows.length}, total count: ${count}`);
     res.json({ items: rows.map((r) => r.toJSON()), count });
   } catch (e) {
     next(e);

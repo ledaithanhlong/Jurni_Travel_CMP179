@@ -67,9 +67,17 @@ app.use((err, req, res, next) => {
 
 async function start() {
   try {
-    await db.sequelize.authenticate();
-    // eslint-disable-next-line no-console
-    console.log('Database connected');
+    // If the project is configured to use SQL (MySQL), authenticate Sequelize.
+    if (env.db && env.db.dialect === 'mysql') {
+      await db.sequelize.authenticate();
+      // eslint-disable-next-line no-console
+      console.log('MySQL (Sequelize) database connected');
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('Skipping Sequelize authentication (not using MySQL)');
+    }
+
+    // Start server regardless of DB type so routes that use MongoDB still work
     httpServer.listen(env.port, () => {
       // eslint-disable-next-line no-console
       console.log(`Server running on http://localhost:${env.port}`);
@@ -77,8 +85,17 @@ async function start() {
     });
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.error('Failed to start server', e);
-    process.exit(1);
+    console.error('Database connection failed:', e);
+    // If Sequelize auth fails for MySQL, do not crash — but log clearly.
+    if (env.db && env.db.dialect === 'mysql') {
+      console.error('MySQL authentication failed. If you want to use MySQL (XAMPP), ensure it is running and env variables are correct.');
+    }
+    // Start server anyway so MongoDB-backed routes can still work if Mongo is available
+    httpServer.listen(env.port, () => {
+      // eslint-disable-next-line no-console
+      console.log(`Server running (possibly degraded) on http://localhost:${env.port}`);
+      console.log(`Socket.io ready for connections`);
+    });
   }
 }
 

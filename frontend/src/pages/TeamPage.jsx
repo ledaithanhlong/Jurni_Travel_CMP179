@@ -204,6 +204,7 @@ export default function TeamPage() {
             uploadData.append('category', 'team');
             uploadData.append('entity_type', 'team');
             if (editingMember?.id) uploadData.append('entity_id', String(editingMember.id));
+            if (editingMember?.id) uploadData.append('replace', '1');
 
             const token = await getToken();
             const res = await axios.post(`${API}/upload`, uploadData, {

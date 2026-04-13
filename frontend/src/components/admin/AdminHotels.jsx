@@ -153,6 +153,7 @@ export default function AdminHotels() {
       formData.append('category', 'hotel');
       formData.append('entity_type', 'hotel');
       if (editing) formData.append('entity_id', String(editing));
+      if (editing) formData.append('replace', '1');
 
       const res = await axios.post(UPLOAD_API, formData, {
         headers: {

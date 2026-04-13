@@ -165,6 +165,9 @@ export const updateActivityMedia = async (req, res, next) => {
       return res.status(404).json({ error: 'Media not found' });
     }
 
+    const prevUrl = item.url;
+    const prevPublicId = item.public_id;
+
     const data = {};
     const allowedFields = ['type', 'url', 'public_id', 'caption', 'is_thumbnail', 'sort_order'];
     for (const field of allowedFields) {
@@ -185,6 +188,27 @@ export const updateActivityMedia = async (req, res, next) => {
 
     await item.update(data, { transaction });
     await transaction.commit();
+
+    if (data.url && String(data.url) !== String(prevUrl)) {
+      try {
+        await db.MediaAsset.update(
+          {
+            url: String(data.url),
+            public_id: data.public_id !== undefined ? (data.public_id ? String(data.public_id) : null) : (prevPublicId ? String(prevPublicId) : null),
+          },
+          {
+            where: {
+              category: 'activity',
+              entity_type: 'activity',
+              entity_id: Number(activityId),
+              url: String(prevUrl),
+            }
+          }
+        );
+      } catch {
+      }
+    }
+
     res.json(item);
   } catch (e) {
     await transaction.rollback();
@@ -201,7 +225,19 @@ export const deleteActivityMedia = async (req, res, next) => {
 
     if (!item) return res.status(404).json({ error: 'Media not found' });
 
+    const url = item.url;
     await item.destroy();
+    try {
+      await db.MediaAsset.destroy({
+        where: {
+          category: 'activity',
+          entity_type: 'activity',
+          entity_id: Number(activityId),
+          url: String(url),
+        }
+      });
+    } catch {
+    }
     res.json({ ok: true });
   } catch (e) { next(e); }
 };

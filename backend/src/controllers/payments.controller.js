@@ -1,29 +1,86 @@
 import db from '../models/index.js';
+import { getAuth } from '@clerk/express';
 
 const paymentMethods = [
   {
-    id: 'card',
-    name: 'Thẻ quốc tế (Visa / Mastercard)',
-    type: 'card',
-    feePercent: 0.018,
+    id: 'internet-banking',
+    name: 'Internet Banking',
+    type: 'bank',
+    feePercent: 0,
     feeFixed: 0,
-    description: 'Thanh toán tức thời với thẻ Visa, Mastercard hoặc JCB.',
+    description: 'Thanh toán online qua tài khoản ngân hàng nội địa.',
+  },
+  {
+    id: 'atm-card',
+    name: 'Thẻ ATM nội địa',
+    type: 'atm',
+    feePercent: 0.01,
+    feeFixed: 0,
+    description: 'Thanh toán bằng thẻ ATM nội địa đã kích hoạt chức năng online.',
   },
   {
     id: 'momo',
-    name: 'Ví điện tử MoMo',
+    name: 'Ví MoMo',
     type: 'ewallet',
-    feePercent: 0.012,
-    feeFixed: 2000,
-    description: 'Quét mã QR hoặc xác nhận trên ứng dụng MoMo.',
+    feePercent: 0.01,
+    feeFixed: 0,
+    description: 'Quét mã hoặc xác nhận trên ứng dụng MoMo.',
   },
   {
     id: 'zalopay',
-    name: 'Ví ZaloPay',
+    name: 'ZaloPay',
     type: 'ewallet',
     feePercent: 0.01,
-    feeFixed: 1500,
+    feeFixed: 0,
     description: 'Xác nhận giao dịch qua ứng dụng ZaloPay.',
+  },
+  {
+    id: 'viettelpay',
+    name: 'ViettelPay',
+    type: 'ewallet',
+    feePercent: 0.01,
+    feeFixed: 0,
+    description: 'Thanh toán nhanh qua ViettelPay.',
+  },
+  {
+    id: 'vnpay-qr',
+    name: 'VNPAY QR',
+    type: 'qr',
+    feePercent: 0,
+    feeFixed: 0,
+    description: 'Quét mã QRPay hỗ trợ nhiều ngân hàng và ví liên kết.',
+  },
+  {
+    id: 'visa',
+    name: 'Visa',
+    type: 'card',
+    feePercent: 0.025,
+    feeFixed: 0,
+    description: 'Thanh toán bằng thẻ Visa Credit/Debit.',
+  },
+  {
+    id: 'mastercard',
+    name: 'Mastercard',
+    type: 'card',
+    feePercent: 0.025,
+    feeFixed: 0,
+    description: 'Thanh toán bằng thẻ Mastercard Credit/Debit.',
+  },
+  {
+    id: 'amex',
+    name: 'American Express',
+    type: 'card',
+    feePercent: 0.03,
+    feeFixed: 0,
+    description: 'Thanh toán bằng thẻ American Express.',
+  },
+  {
+    id: 'paypal',
+    name: 'PayPal',
+    type: 'paypal',
+    feePercent: 0.035,
+    feeFixed: 0,
+    description: 'Thanh toán quốc tế qua PayPal.',
   },
   {
     id: 'bank_transfer',
@@ -87,24 +144,38 @@ export const processPayment = async (req, res, next) => {
     let bookingRecord = null;
     const createdBookings = [];
 
-    // Use a default system user ID to avoid foreign key constraint issues
-    // Customer info is stored in customer_name, customer_email, customer_phone fields
-    // We'll use user_id = 1 as a system/guest user
-    const systemUserId = 1;
-
-    // Ensure system user exists in database
-    try {
-      await db.User.findOrCreate({
-        where: { id: systemUserId },
-        defaults: {
-          name: 'System User',
-          email: 'system@jurni.com',
-          role: 'user',
-        }
-      });
-    } catch (userErr) {
-      console.log('System user setup error:', userErr.message);
+    const auth = getAuth(req);
+    const clerkId = auth?.userId;
+    if (!clerkId) {
+      return res.status(401).json({ error: 'Vui lòng đăng nhập để thanh toán.' });
     }
+
+    let user = req.user || await db.User.findOne({ where: { clerkId } });
+    let email = user?.email;
+    if (!email && auth?.sessionClaims) {
+      email = auth.sessionClaims.email ||
+        auth.sessionClaims.primary_email_address ||
+        (Array.isArray(auth.sessionClaims.email_addresses) ? auth.sessionClaims.email_addresses[0]?.email_address : null);
+    }
+    if (!email) email = customer.email;
+
+    if (!user && email) {
+      user = await db.User.findOne({ where: { email } });
+      if (user && !user.clerkId) {
+        await user.update({ clerkId });
+      }
+    }
+
+    if (!user) {
+      user = await db.User.create({
+        clerkId,
+        name: customer.name || (email ? email.split('@')[0] : 'User'),
+        email: email || `${clerkId}@jurni.local`,
+        role: 'user',
+      });
+    }
+
+    const userId = user.id;
 
     // Prioritize looping through items if provided and requested
     if (items && Array.isArray(items) && items.length > 0) {
@@ -134,11 +205,11 @@ export const processPayment = async (req, res, next) => {
           const endDate = details.checkOut || details.endDate || details.dropoffDate || details.arrivalTime;
 
           const bookingData = {
-            user_id: systemUserId,
+            user_id: userId,
             // service_type: subServiceType, // Removed
             // service_id: subServiceId || 1, // Removed
             total_price: item.price * item.quantity,
-            status: 'pending',
+            status: 'confirmed', // Set to confirmed immediately after successful payment
             customer_name: customer.name,
             customer_email: customer.email,
             customer_phone: customer.phone,
@@ -152,10 +223,11 @@ export const processPayment = async (req, res, next) => {
           };
 
           // Set Explicit FK
-          if (subServiceType === 'hotel') bookingData.hotel_id = subServiceId;
-          else if (subServiceType === 'flight') bookingData.flight_id = subServiceId;
-          else if (subServiceType === 'car') bookingData.car_id = subServiceId;
-          else if (subServiceType === 'activity') bookingData.activity_id = subServiceId;
+          const numericServiceId = subServiceId !== null && subServiceId !== undefined && subServiceId !== '' ? Number(subServiceId) : null;
+          if (subServiceType === 'hotel') bookingData.hotel_id = numericServiceId;
+          else if (subServiceType === 'flight') bookingData.flight_id = numericServiceId;
+          else if (subServiceType === 'car') bookingData.car_id = numericServiceId;
+          else if (subServiceType === 'activity') bookingData.activity_id = numericServiceId;
 
           const newBooking = await db.Booking.create(bookingData);
           createdBookings.push(newBooking);
@@ -169,16 +241,16 @@ export const processPayment = async (req, res, next) => {
       // Legacy handling of single item booking from simplified payload
       // Map to explicit FK based on incoming service_type
       // Note: Frontend should ideally send 'items' array. This is fallback.
-      if (systemUserId) {
+      if (userId) {
         // Handle single booking legacy
         const details = booking.details || {};
         const startDate = details.checkIn || details.startDate || booking.checkIn;
         const endDate = details.checkOut || details.endDate || booking.checkOut;
 
         const bookingData = {
-          user_id: systemUserId,
+          user_id: userId,
           total_price: amountNumber, // Total amount
-          status: 'pending',
+          status: 'confirmed', // Set to confirmed immediately after successful payment
           customer_name: customer.name,
           customer_email: customer.email,
           customer_phone: customer.phone,
@@ -192,10 +264,11 @@ export const processPayment = async (req, res, next) => {
         };
 
         // Set Explicit FK
-        if (booking.service_type === 'hotel') bookingData.hotel_id = booking.service_id;
-        else if (booking.service_type === 'flight') bookingData.flight_id = booking.service_id;
-        else if (booking.service_type === 'car') bookingData.car_id = booking.service_id;
-        else if (booking.service_type === 'activity') bookingData.activity_id = booking.service_id;
+        const numericServiceId = booking.service_id !== null && booking.service_id !== undefined && booking.service_id !== '' ? Number(booking.service_id) : null;
+        if (booking.service_type === 'hotel') bookingData.hotel_id = numericServiceId;
+        else if (booking.service_type === 'flight') bookingData.flight_id = numericServiceId;
+        else if (booking.service_type === 'car') bookingData.car_id = numericServiceId;
+        else if (booking.service_type === 'activity') bookingData.activity_id = numericServiceId;
 
         bookingRecord = await db.Booking.create(bookingData);
       }

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
 // Socket connects to base server URL (without /api path)
-const SOCKET_URL = API_URL.replace(/\/api$/, '');
+const SOCKET_URL = API_URL.replace(/\/api\/v1$/, '').replace(/\/api$/, '');
 
 export default function AdminChatPage() {
     const [conversations, setConversations] = useState([]);

@@ -55,7 +55,9 @@ setupChatSocket(io);
 app.use('/uploads', express.static(path.join(projectRoot, 'uploads')));
 
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/api/v1/health', (req, res) => res.json({ ok: true }));
 app.use('/api', apiRouter);
+app.use('/api/v1', apiRouter);
 
 app.use((err, req, res, next) => {
   // eslint-disable-next-line no-console

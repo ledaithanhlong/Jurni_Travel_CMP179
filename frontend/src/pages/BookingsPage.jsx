@@ -27,6 +27,7 @@ export default function BookingsPage() {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [pageNotice, setPageNotice] = useState(null);
     const [reviewModal, setReviewModal] = useState({ open: false, booking: null });
     const [reviewRating, setReviewRating] = useState(5);
     const [reviewComment, setReviewComment] = useState('');
@@ -100,8 +101,13 @@ export default function BookingsPage() {
                 headers: { Authorization: `Bearer ${token}` }
             });
 
-            setReviewSuccess('Đã gửi đánh giá. Nội dung sẽ hiển thị sau khi được duyệt.');
+            setReviewSuccess('Đã gửi đánh giá. Nội dung sẽ hiển thị sau khi admin duyệt.');
+            setPageNotice('Bạn đã gửi đánh giá thành công. Vui lòng chờ admin duyệt để hiển thị công khai.');
             await fetchBookings();
+            setTimeout(() => {
+                closeReviewModal();
+                setPageNotice(null);
+            }, 1400);
         } catch (err) {
             const message = err?.response?.data?.error || err?.response?.data?.message || 'Không thể gửi đánh giá.';
             setReviewError(message);
@@ -136,6 +142,12 @@ export default function BookingsPage() {
         <div className="bg-gray-50 min-h-screen py-10">
             <div className="max-w-7xl mx-auto px-4">
                 <h1 className="text-3xl font-bold text-blue-900 mb-8">Đặt chỗ của tôi</h1>
+
+                {pageNotice && (
+                    <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-xl mb-6">
+                        {pageNotice}
+                    </div>
+                )}
 
                 {error && (
                     <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-6">
@@ -226,7 +238,7 @@ export default function BookingsPage() {
                                         <div className="flex items-center gap-2">
                                             {booking.review && (
                                                 <span className="text-xs font-semibold px-3 py-1 rounded-full bg-white border border-gray-200 text-gray-700">
-                                                    Đã đánh giá ({booking.review.status === 'approved' ? 'Đã duyệt' : booking.review.status === 'hidden' ? 'Đã ẩn' : 'Chờ duyệt'})
+                                                    Đã đánh giá ({booking.review.status === 'approved' ? 'Đã duyệt' : booking.review.status === 'hidden' ? 'Đã ẩn' : 'Chờ admin duyệt'})
                                                 </span>
                                             )}
                                             {canReview(booking) && (

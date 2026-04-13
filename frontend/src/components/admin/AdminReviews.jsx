@@ -31,7 +31,7 @@ export default function AdminReviews() {
       setItems(res.data?.items || []);
     } catch (err) {
       console.error('Error fetching reviews:', err);
-      setError('Không thể tải danh sách đánh giá.');
+      setError(err?.response?.data?.message || err?.response?.data?.error || 'Không thể tải danh sách đánh giá.');
       setItems([]);
     } finally {
       setLoading(false);
@@ -193,4 +193,3 @@ export default function AdminReviews() {
     </div>
   );
 }
-

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { sampleHotels } from '../data/mockData';
 import { HotelCard } from '../components/ServiceCards';
 import FavoriteButton from '../components/FavoriteButton';
 import {
@@ -15,17 +14,18 @@ export default function HotelsPage() {
   const [rows, setRows] = useState([]);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [q, setQ] = useState('');
+  const [apiOk, setApiOk] = useState(false);
 
   const load = async () => {
     try {
       const res = await axios.get(`${API}/hotels`, { params: { q } });
       const sanitized = (res.data || []).filter((hotel) => !hotel.status || hotel.status === 'approved');
       setRows(sanitized);
+      setApiOk(true);
     } catch (error) {
       console.error('Error loading hotels:', error);
-      setRows([]); // We will use fallback in render or derivation logic, or just set sampleHotels here if preferred. 
-      // Actually the logic `const hotels = rows.length > 0 ? rows : sampleHotels;` handles empty rows.
-      // So setting rows to [] is fine.
+      setRows([]);
+      setApiOk(false);
     }
   };
 
@@ -34,10 +34,7 @@ export default function HotelsPage() {
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN').format(price || 0);
   };
-
-
-
-  const hotels = rows.length > 0 ? rows : sampleHotels;
+  const hotels = rows;
 
   const statistics = [
     { number: '100,000+', label: 'Khách hàng hài lòng', icon: <IconUsers /> },
@@ -311,9 +308,13 @@ export default function HotelsPage() {
             <div className="text-center py-16">
               <div className="bg-white rounded-2xl shadow-lg p-12 max-w-md mx-auto">
                 <IconHotelLarge />
-                <h3 className="text-2xl font-bold text-gray-900 mt-6 mb-2">Không tìm thấy khách sạn</h3>
+                <h3 className="text-2xl font-bold text-gray-900 mt-6 mb-2">
+                  {apiOk && !q ? 'Chưa có khách sạn được duyệt' : 'Không tìm thấy khách sạn'}
+                </h3>
                 <p className="text-gray-600 mb-6">
-                  Vui lòng thử lại với từ khóa khác hoặc liên hệ với chúng tôi để được hỗ trợ.
+                  {apiOk && !q
+                    ? 'Hiện chưa có khách sạn nào được duyệt để hiển thị. Nếu bạn là admin, vào Quản trị → Khách sạn để thêm và duyệt.'
+                    : 'Vui lòng thử lại với từ khóa khác hoặc liên hệ với chúng tôi để được hỗ trợ.'}
                 </p>
                 <button
                   onClick={() => setQ('')}

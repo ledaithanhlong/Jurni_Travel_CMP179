@@ -8,11 +8,11 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "migrate:mysql-to-mongo": "node src/scripts/migrate-mysql-to-mongo.js",
-    "db:create": "sequelize db:create",
-    "db:migrate": "sequelize db:migrate",
-    "db:migrate:undo": "sequelize db:migrate:undo",
-    "db:seed": "sequelize db:seed:all",
-    "db:seed:undo": "sequelize db:seed:undo:all"
+    "db:create": "sequelize db:create --config src/config/database.cjs",
+    "db:migrate": "sequelize db:migrate --config src/config/database.cjs --migrations-path src/migrations",
+    "db:migrate:undo": "sequelize db:migrate:undo --config src/config/database.cjs --migrations-path src/migrations",
+    "db:seed": "sequelize db:seed:all --config src/config/database.cjs",
+    "db:seed:undo": "sequelize db:seed:undo:all --config src/config/database.cjs"
   },
   "dependencies": {
     "@clerk/express": "^1.3.20",

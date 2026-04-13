@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth, useUser } from '@clerk/clerk-react';
 
 const formatCurrency = (value = 0, currency = 'VND') => {
   const number = Number(value) || 0;
@@ -173,6 +173,7 @@ export default function PaymentPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { user } = useUser();
+  const { getToken } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -349,6 +350,13 @@ export default function PaymentPage() {
   const confirmPayment = async () => {
     setSubmitting(true);
     try {
+      const token = await getToken();
+      if (!token) {
+        setStatus({ type: 'error', message: 'Vui lòng đăng nhập để thanh toán.', reference: '' });
+        setShowQRModal(false);
+        return;
+      }
+
       const payload = {
         amount: total,
         currency: 'VND',
@@ -360,12 +368,13 @@ export default function PaymentPage() {
         },
         items: selectedItems,
         book_all_items: true, // Signal to backend to loop items
-        user_id: user?.id,
       };
 
       const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       // Backend route is /api/payments/checkout (mounted at /payments in index.js, and /checkout in payments.routes.js)
-      const res = await axios.post(`${API}/payments/checkout`, payload);
+      const res = await axios.post(`${API}/payments/checkout`, payload, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
       if (res.data.success) {
         setStatus({ type: 'success', message: 'Thanh toán thành công! Đang chuyển đến trang voucher...', reference: res.data.payment?.reference });

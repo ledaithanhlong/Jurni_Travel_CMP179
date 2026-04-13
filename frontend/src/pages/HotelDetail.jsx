@@ -68,8 +68,7 @@ export default function HotelDetail() {
         setHotel(res.data);
       } catch (error) {
         console.error('Error loading hotel:', error);
-        alert('Không tìm thấy khách sạn');
-        navigate('/hotels');
+        setHotel(null);
       } finally {
         setLoading(false);
       }

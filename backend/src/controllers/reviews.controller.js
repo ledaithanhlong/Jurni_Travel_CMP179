@@ -96,7 +96,7 @@ export const adminListReviews = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
-    res.json({ items: rows });
+    res.json({ items: rows.map((r) => r.toJSON()) });
   } catch (e) {
     next(e);
   }
@@ -133,4 +133,3 @@ export const adminDeleteReview = async (req, res, next) => {
     next(e);
   }
 };
-

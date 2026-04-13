@@ -6,10 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "tunnel:frontend": "tunnelto --port 5173",
+    "tunnel:frontend:custom": "tunnelto --port 5173 --subdomain"
   },
   "dependencies": {
-    "@clerk/clerk-react": "^5.61.4",
+    "@clerk/clerk-react": "^5.11.2",
     "axios": "^1.7.7",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.3",
@@ -17,7 +19,8 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-easy-crop": "^5.5.6",
-    "react-router-dom": "^6.27.0"
+    "react-router-dom": "^6.27.0",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",

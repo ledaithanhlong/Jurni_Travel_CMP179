@@ -6,9 +6,20 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const serviceTypeLabel = {
   hotel: 'Khách sạn',
+  hotels: 'Khách sạn',
   flight: 'Vé máy bay',
+  flights: 'Vé máy bay',
   car: 'Thuê xe',
+  cars: 'Thuê xe',
   activity: 'Hoạt động',
+  activities: 'Hoạt động',
+};
+
+const serviceTypeRoute = {
+  hotel: 'hotels',
+  flight: 'flights',
+  car: 'cars',
+  activity: 'activities',
 };
 
 export default function FavoritesPage() {
@@ -17,29 +28,45 @@ export default function FavoritesPage() {
   const [error, setError] = useState('');
   const { getToken } = useAuth();
 
+  const loadFavorites = async () => {
+    try {
+      setLoading(true);
+      const token = await getToken();
+      const res = await axios.get(`${API}/favorites`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setRows(res.data || []);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Không thể tải danh sách yêu thích. Vui lòng thử lại sau.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     (async () => {
-      try {
-        setLoading(true);
-        const token = await getToken();
-        const res = await axios.get(`${API}/favorites`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!mounted) return;
-        setRows(res.data || []);
-      } catch (err) {
-        if (!mounted) return;
-        setError(err.response?.data?.error || 'Không thể tải danh sách yêu thích. Vui lòng thử lại sau.');
-      } finally {
-        if (mounted) setLoading(false);
-      }
+      await loadFavorites();
     })();
 
     return () => {
       mounted = false;
     };
   }, [getToken]);
+
+  const handleDelete = async (id) => {
+    if (!confirm('Bạn có chắc muốn xóa khỏi danh sách yêu thích?')) return;
+
+    try {
+      const token = await getToken();
+      await axios.delete(`${API}/favorites/${id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      await loadFavorites(); // Reload list
+    } catch (err) {
+      alert(err.response?.data?.error || 'Không thể xóa. Vui lòng thử lại.');
+    }
+  };
 
   if (loading) {
     return (
@@ -95,17 +122,22 @@ export default function FavoritesPage() {
             key={item.id}
             className="group rounded-3xl border border-blue-100 bg-white/80 p-5 shadow shadow-blue-100/40 transition hover:-translate-y-1 hover:border-orange-400 hover:shadow-lg"
           >
-            <div className="flex items-start justify-between gap-3">
-              <div>
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div className="flex-1">
                 <p className="text-xs uppercase tracking-[0.3em] text-blue-500">
                   {serviceTypeLabel[item.service_type] || item.service_type}
                 </p>
                 <p className="mt-2 text-lg font-semibold text-blue-900">
-                  {item.name || `Mã dịch vụ #${item.service_id}`}
+                  {item.name || `Dịch vụ #${item.service_id}`}
                 </p>
                 {item.meta && (
                   <p className="mt-1 text-sm text-blue-700/80 line-clamp-2">
                     {item.meta}
+                  </p>
+                )}
+                {item.price && (
+                  <p className="mt-2 text-xl font-bold" style={{ color: '#FF6B35' }}>
+                    {new Intl.NumberFormat('vi-VN').format(item.price)} VND
                   </p>
                 )}
               </div>
@@ -118,12 +150,21 @@ export default function FavoritesPage() {
                 Đã thêm ngày{' '}
                 {item.created_at ? new Date(item.created_at).toLocaleDateString('vi-VN') : 'Không xác định'}
               </span>
-              <a
-                href={`/${item.service_type || 'services'}/${item.service_id}`}
-                className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition"
-              >
-                Xem chi tiết →
-              </a>
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/${serviceTypeRoute[item.service_type] || item.service_type}/${item.service_id}`}
+                  className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition"
+                >
+                  Xem chi tiết →
+                </a>
+                <button
+                  onClick={() => handleDelete(item.id)}
+                  className="text-sm font-semibold text-rose-600 hover:text-rose-700 transition"
+                  title="Xóa khỏi yêu thích"
+                >
+                  🗑️
+                </button>
+              </div>
             </div>
           </div>
         ))}

@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { useAuth, useUser } from '@clerk/clerk-react';
+import { useUser } from '@clerk/clerk-react';
 
 const formatCurrency = (value = 0, currency = 'VND') => {
   const number = Number(value) || 0;
@@ -173,7 +173,6 @@ export default function PaymentPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const { user } = useUser();
-  const { getToken } = useAuth();
   const [cartItems, setCartItems] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
 
@@ -353,6 +352,7 @@ export default function PaymentPage() {
       const payload = {
         amount: total,
         currency: 'VND',
+        currency: 'VND',
         paymentMethod: form.paymentMethod,
         customer: {
           name: form.fullName,
@@ -366,13 +366,10 @@ export default function PaymentPage() {
 
       const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
       // Backend route is /api/payments/checkout (mounted at /payments in index.js, and /checkout in payments.routes.js)
-      const token = await getToken();
-      const res = await axios.post(`${API}/payments/checkout`, payload, {
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
+      const res = await axios.post(`${API}/payments/checkout`, payload);
 
       if (res.data.success) {
-        setStatus({ type: 'success', message: 'Thanh toán thành công! Đang chuyển đến trang thông báo...', reference: res.data.payment?.reference });
+        setStatus({ type: 'success', message: 'Thanh toán thành công! Đang chuyển đến trang voucher...', reference: res.data.payment?.reference });
         setShowQRModal(false);
 
         // Remove paid items from cart
@@ -382,7 +379,7 @@ export default function PaymentPage() {
         localStorage.setItem('pendingCart', JSON.stringify(remainingCart));
 
         setTimeout(() => {
-          navigate('/notifications', { state: { paymentReference: res.data.payment?.reference } });
+          navigate('/vouchers');
         }, 2000);
       } else {
         throw new Error(res.data.error || 'Thanh toán thất bại');
@@ -595,17 +592,15 @@ export default function PaymentPage() {
           </div>
         )}
 
-        <div className="grid gap-8 lg:grid-cols-[1.9fr_1.1fr]">
-          <form
-            onSubmit={handleSubmit}
-            className="space-y-8 rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur"
-          >
+        <div className="grid gap-6 lg:grid-cols-[1fr_1fr_0.9fr]">
+          {/* Cột 1: Thông tin liên hệ */}
+          <div className="space-y-6 rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
             <section className="space-y-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-blue-900">Thông tin liên hệ</h2>
                 <span className="text-xs text-blue-600/70">* Bắt buộc</span>
               </div>
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-blue-900">Họ và tên *</label>
                   <input
@@ -626,71 +621,76 @@ export default function PaymentPage() {
                     required
                   />
                 </div>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-blue-900">Email nhận hóa đơn *</label>
-                <input
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange('email')}
-                  className="mt-1 w-full rounded-lg border border-blue-100 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="you@example.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-blue-900">Ghi chú (không bắt buộc)</label>
-                <textarea
-                  value={form.notes}
-                  onChange={handleChange('notes')}
-                  rows={3}
-                  className="mt-1 w-full rounded-lg border border-blue-100 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                  placeholder="Thông tin bổ sung cho Jurni..."
-                />
+                <div>
+                  <label className="text-sm font-medium text-blue-900">Email nhận hóa đơn *</label>
+                  <input
+                    type="email"
+                    value={form.email}
+                    onChange={handleChange('email')}
+                    className="mt-1 w-full rounded-lg border border-blue-100 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="you@example.com"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-blue-900">Ghi chú (không bắt buộc)</label>
+                  <textarea
+                    value={form.notes}
+                    onChange={handleChange('notes')}
+                    rows={3}
+                    className="mt-1 w-full rounded-lg border border-blue-100 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
+                    placeholder="Thông tin bổ sung cho Jurni..."
+                  />
+                </div>
               </div>
             </section>
+          </div>
 
+          {/* Cột 2: Phương thức thanh toán */}
+          <form onSubmit={handleSubmit} className="space-y-6 rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
             <section className="space-y-4">
-              <div className="flex gap-3 border-b border-blue-100 pb-2">
+              <h2 className="text-xl font-semibold text-blue-900">Phương thức thanh toán</h2>
+
+              <div className="flex gap-2 border-b border-blue-100 pb-2">
                 <button
                   type="button"
                   onClick={() => handleCategoryChange('vietnamese')}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${form.paymentCategory === 'vietnamese'
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${form.paymentCategory === 'vietnamese'
                     ? 'text-white shadow'
                     : 'hover:bg-orange-50'
                     }`}
                   style={form.paymentCategory === 'vietnamese' ? { backgroundColor: '#FF6B35' } : { color: '#FF6B35' }}
                 >
-                  Phương thức Việt Nam
+                  Việt Nam
                 </button>
                 <button
                   type="button"
                   onClick={() => handleCategoryChange('international')}
-                  className={`rounded-full px-4 py-1.5 text-sm font-medium transition ${form.paymentCategory === 'international'
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition ${form.paymentCategory === 'international'
                     ? 'text-white shadow'
                     : 'hover:bg-orange-50'
                     }`}
                   style={form.paymentCategory === 'international' ? { backgroundColor: '#FF6B35' } : { color: '#FF6B35' }}
                 >
-                  Phương thức Quốc tế
+                  Quốc tế
                 </button>
               </div>
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {activeMethods.map((method) => (
                   <label
                     key={method.id}
-                    className={`flex flex-col gap-2 rounded-2xl border px-4 py-3 transition ${form.paymentMethod === method.id
-                      ? 'border-blue-500 bg-blue-50/80 shadow-lg'
+                    className={`flex flex-col gap-1.5 rounded-xl border px-3 py-2.5 transition cursor-pointer ${form.paymentMethod === method.id
+                      ? 'border-blue-500 bg-blue-50/80 shadow-md'
                       : 'border-blue-100 hover:border-orange-300 hover:bg-orange-50/40'
                       }`}
                   >
                     <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2.5">
                         <PaymentLogo logo={method.logo} badge={method.badge} gradient={method.color} />
                         <div>
-                          <p className="font-semibold text-blue-900">{method.name}</p>
-                          <p className="text-sm text-blue-700/80">{method.description}</p>
+                          <p className="font-semibold text-sm text-blue-900">{method.name}</p>
+                          <p className="text-xs text-blue-700/70 leading-tight">{method.description}</p>
                         </div>
                       </div>
                       <input
@@ -699,13 +699,15 @@ export default function PaymentPage() {
                         value={method.id}
                         checked={form.paymentMethod === method.id}
                         onChange={() => setForm((prev) => ({ ...prev, paymentMethod: method.id }))}
-                        className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500"
+                        className="mt-0.5 h-4 w-4 text-blue-600 focus:ring-blue-500"
                       />
                     </div>
-                    <p className="text-xs text-blue-600/70">
-                      Phí xử lý: {(method.feePercent * 100).toFixed(1)}%
-                      {method.feeFixed ? ` + ${formatCurrency(method.feeFixed, 'VND')}` : ''}
-                      {method.feePercent === 0 && method.feeFixed === 0 && ' (Miễn phí)'}
+                    <p className="text-xs text-blue-600/70 pl-11">
+                      {method.feePercent === 0 && method.feeFixed === 0 ? (
+                        <span className="text-emerald-600 font-medium">Miễn phí giao dịch</span>
+                      ) : (
+                        <>Phí: {(method.feePercent * 100).toFixed(1)}%{method.feeFixed ? ` + ${formatCurrency(method.feeFixed, 'VND')}` : ''}</>
+                      )}
                     </p>
                   </label>
                 ))}
@@ -715,70 +717,85 @@ export default function PaymentPage() {
               {renderBeneficiary()}
             </section>
 
-            <div className="flex flex-col gap-3 rounded-2xl bg-gradient-to-r from-blue-600 to-sky-500 px-6 py-5 text-white shadow-lg">
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="text-sm text-white">Tổng thanh toán</p>
-                  <p className="text-2xl font-semibold">{formatCurrency(total, 'VND')}</p>
-                </div>
-                <button
-                  type="submit"
-                  disabled={submitting || !hasOrder}
-                  className="inline-flex items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold text-blue-700 shadow-lg transition hover:bg-blue-50 disabled:pointer-events-none disabled:opacity-60"
-                >
-                  Thanh toán & hoàn tất đặt chỗ
-                </button>
-              </div>
-              <p className="text-xs text-white">
-                Khi bấm “Thanh toán”, bạn đồng ý với điều khoản sử dụng và chính sách hủy của Jurni.
-              </p>
-            </div>
+            <button
+              type="submit"
+              disabled={submitting || !hasOrder}
+              className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-sky-500 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition hover:shadow-xl disabled:pointer-events-none disabled:opacity-60"
+            >
+              Thanh toán & hoàn tất đặt chỗ
+            </button>
+            <p className="text-xs text-center text-blue-600/70">
+              Khi bấm "Thanh toán", bạn đồng ý với điều khoản sử dụng và chính sách hủy của Jurni.
+            </p>
           </form>
 
-          <aside className="space-y-6 rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
+          <aside className="space-y-4 rounded-3xl border border-blue-100 bg-white/90 p-6 shadow-xl backdrop-blur">
             {hasOrder ? (
               <>
-                <div>
-                  <h3 className="text-lg font-semibold text-blue-900">Tóm tắt đơn đặt</h3>
-                  <ul className="mt-4 space-y-3">
-                    <ul className="mt-4 space-y-3">
-                      {cartItems.map((item) => (
-                        <li key={item.id} className={`rounded-xl border px-4 py-3 transition-colors ${selectedIds.includes(item.id) ? 'border-blue-500 bg-blue-50/60' : 'border-gray-200 bg-white opacity-60'}`}>
-                          <div className="flex items-start gap-3">
-                            <input
-                              type="checkbox"
-                              checked={selectedIds.includes(item.id)}
-                              onChange={() => toggleSelect(item.id)}
-                              className="mt-1 h-5 w-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between">
-                                <span className={`font-semibold ${selectedIds.includes(item.id) ? 'text-blue-900' : 'text-gray-600'}`}>{item.name}</span>
-                                <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500">
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                  </svg>
-                                </button>
-                              </div>
-                              <div className="flex items-center justify-between text-sm mt-1">
-                                <span className="uppercase tracking-wide text-blue-600/70 text-xs">{item.type}</span>
-                                <div><span className="text-gray-500 text-xs">x{item.quantity}</span></div>
-                              </div>
-                              <p className={`mt-2 text-sm font-bold ${selectedIds.includes(item.id) ? 'text-blue-900' : 'text-gray-500'}`}>
-                                {formatCurrency(item.price * item.quantity, 'VND')}
-                              </p>
-                            </div>
-                          </div>
-                        </li>
-                      ))}
+                {/* Tổng thanh toán - Sticky ở đầu */}
+                <div className="rounded-2xl bg-gradient-to-br from-blue-600 to-sky-500 px-5 py-4 text-white shadow-lg">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium opacity-90">Tổng thanh toán</span>
+                    <span className="text-2xl font-bold">{formatCurrency(total, 'VND')}</span>
+                  </div>
+                  <div className="space-y-1.5 text-xs opacity-80">
+                    <div className="flex items-center justify-between">
+                      <span>Tạm tính ({selectedItems.length} dịch vụ)</span>
+                      <span>{formatCurrency(subtotal, 'VND')}</span>
+                    </div>
+                    {methodFee > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span>Phí xử lý</span>
+                        <span>+{formatCurrency(methodFee, 'VND')}</span>
+                      </div>
+                    )}
+                    {discountAmount > 0 && (
+                      <div className="flex items-center justify-between text-emerald-200 font-medium">
+                        <span>Giảm giá</span>
+                        <span>-{formatCurrency(discountAmount, 'VND')}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
 
-                    </ul>
+                <div>
+                  <h3 className="text-base font-semibold text-blue-900 mb-3">Dịch vụ đã chọn</h3>
+                  <ul className="space-y-2">
+                    {cartItems.map((item) => (
+                      <li key={item.id} className={`rounded-xl border px-3 py-2.5 transition-colors ${selectedIds.includes(item.id) ? 'border-blue-500 bg-blue-50/60' : 'border-gray-200 bg-white opacity-60'}`}>
+                        <div className="flex items-start gap-2.5">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.includes(item.id)}
+                            onChange={() => toggleSelect(item.id)}
+                            className="mt-0.5 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className={`font-semibold text-sm truncate ${selectedIds.includes(item.id) ? 'text-blue-900' : 'text-gray-600'}`}>{item.name}</span>
+                              <button onClick={() => removeItem(item.id)} className="text-gray-400 hover:text-red-500 flex-shrink-0">
+                                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                            <div className="flex items-center justify-between text-xs mt-1">
+                              <span className="uppercase tracking-wide text-blue-600/70">{item.type}</span>
+                              <span className="text-gray-500">x{item.quantity}</span>
+                            </div>
+                            <p className={`mt-1.5 text-sm font-bold ${selectedIds.includes(item.id) ? 'text-blue-900' : 'text-gray-500'}`}>
+                              {formatCurrency(item.price * item.quantity, 'VND')}
+                            </p>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
                   </ul>
                 </div>
 
                 {/* Voucher Input */}
-                <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4">
-                  <h3 className="font-semibold text-blue-900 mb-3 text-sm">Mã ưu đãi</h3>
+                <div className="rounded-xl border border-blue-100 bg-white px-3.5 py-3">
+                  <h3 className="font-semibold text-blue-900 mb-2.5 text-sm">Mã ưu đãi</h3>
                   <div className="flex gap-2">
                     <input
                       value={voucherCode}
@@ -789,7 +806,7 @@ export default function PaymentPage() {
                     <button
                       type="button"
                       onClick={handleApplyVoucher}
-                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
+                      className="rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white hover:bg-blue-700"
                     >
                       Áp dụng
                     </button>
@@ -802,29 +819,6 @@ export default function PaymentPage() {
                     </div>
                   )}
                 </div>
-
-                <div className="rounded-2xl border border-blue-50 bg-blue-50/60 px-4 py-3 text-sm text-blue-800">
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span>Tạm tính ({selectedItems.length} dịch vụ)</span>
-                      <span className="font-semibold">{formatCurrency(subtotal, 'VND')}</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span>Phí xử lý</span>
-                      <span className="font-semibold">{formatCurrency(methodFee, 'VND')}</span>
-                    </div>
-                    {discountAmount > 0 && (
-                      <div className="flex items-center justify-between text-emerald-600">
-                        <span>Giảm giá</span>
-                        <span className="font-semibold">-{formatCurrency(discountAmount, 'VND')}</span>
-                      </div>
-                    )}
-                    <div className="border-t border-blue-100 pt-2 flex items-center justify-between text-blue-900">
-                      <span className="font-semibold">Tổng thanh toán</span>
-                      <span className="text-lg font-semibold">{formatCurrency(total, 'VND')}</span>
-                    </div>
-                  </div>
-                </div>
               </>
             ) : (
               <div className="rounded-2xl border border-dashed border-blue-200 bg-blue-50/40 px-4 py-6 text-center text-blue-800">
@@ -833,9 +827,9 @@ export default function PaymentPage() {
               </div>
             )}
 
-            <div className="rounded-2xl border border-blue-100 bg-white px-4 py-4 text-xs text-blue-700/80">
-              <p className="font-semibold text-blue-900">Cam kết Jurni</p>
-              <ul className="mt-2 space-y-2">
+            <div className="rounded-xl border border-blue-100 bg-white px-3.5 py-3 text-xs text-blue-700/80">
+              <p className="font-semibold text-blue-900 mb-2">Cam kết Jurni</p>
+              <ul className="space-y-1.5">
                 <li>✔ Hoàn tiền trong 48h nếu thanh toán thất bại.</li>
                 <li>✔ Hỗ trợ trực tuyến 24/7 trong suốt hành trình.</li>
                 <li>✔ Mã hóa tiêu chuẩn ngành, bảo mật tuyệt đối thông tin thẻ.</li>

@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const supportChannels = [
   {
@@ -57,6 +59,50 @@ const faqs = [
 ];
 
 export default function SupportPage() {
+  const [form, setForm] = useState({ name: '', email: '', content: '' });
+  const [isLoading, setIsLoading] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null); // null | 'success' | 'error'
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleChange = (e) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleSubmit = async () => {
+    const { name, email, content } = form;
+    if (!name.trim() || !email.trim() || !content.trim()) {
+      setSubmitStatus('error');
+      setErrorMsg('Vui lòng điền đầy đủ tất cả thông tin.');
+      return;
+    }
+
+    setIsLoading(true);
+    setSubmitStatus(null);
+
+    try {
+      const res = await fetch(`${API_URL}/support-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, content }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setSubmitStatus('success');
+        setForm({ name: '', email: '', content: '' });
+      } else {
+        setSubmitStatus('error');
+        setErrorMsg(data.error || 'Có lỗi xảy ra. Vui lòng thử lại.');
+      }
+    } catch {
+      setSubmitStatus('error');
+      setErrorMsg('Không thể kết nối đến server. Vui lòng thử lại sau.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="bg-gradient-to-b from-white via-blue-50/40 to-white py-12">
       <div className="max-w-7xl mx-auto px-4 space-y-16">
@@ -150,13 +196,31 @@ export default function SupportPage() {
               </div>
             </div>
           </div>
+
+          {/* Form gửi yêu cầu */}
           <aside className="rounded-3xl border border-blue-100 bg-white/90 p-8 shadow-xl shadow-blue-100/40">
             <h3 className="text-lg font-semibold text-blue-900">Gửi yêu cầu hỗ trợ nhanh</h3>
-            <form className="mt-4 space-y-4 text-sm">
+
+            {submitStatus === 'success' && (
+              <div className="mt-4 rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-700">
+                ✅ Yêu cầu đã được gửi thành công! Chúng tôi sẽ phản hồi trong vòng 2 giờ làm việc.
+              </div>
+            )}
+
+            {submitStatus === 'error' && (
+              <div className="mt-4 rounded-xl bg-red-50 border border-red-200 p-4 text-sm text-red-700">
+                ❌ {errorMsg}
+              </div>
+            )}
+
+            <form className="mt-4 space-y-4 text-sm" onSubmit={(e) => e.preventDefault()}>
               <div>
                 <label className="font-medium text-blue-900">Họ và tên</label>
                 <input
                   type="text"
+                  name="name"
+                  value={form.name}
+                  onChange={handleChange}
                   placeholder="Nhập họ tên"
                   className="mt-1 w-full rounded-lg border border-blue-100 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
@@ -165,6 +229,9 @@ export default function SupportPage() {
                 <label className="font-medium text-blue-900">Email</label>
                 <input
                   type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
                   placeholder="you@example.com"
                   className="mt-1 w-full rounded-lg border border-blue-100 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
@@ -173,15 +240,20 @@ export default function SupportPage() {
                 <label className="font-medium text-blue-900">Nội dung cần hỗ trợ</label>
                 <textarea
                   rows={4}
+                  name="content"
+                  value={form.content}
+                  onChange={handleChange}
                   placeholder="Hãy mô tả ngắn gọn vấn đề của bạn..."
                   className="mt-1 w-full rounded-lg border border-blue-100 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-100"
                 />
               </div>
               <button
                 type="button"
-                className="w-full rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition"
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="w-full rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700 transition disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Gửi yêu cầu
+                {isLoading ? 'Đang gửi...' : 'Gửi yêu cầu'}
               </button>
               <p className="text-xs text-blue-600/80">
                 Yêu cầu của bạn sẽ được phản hồi qua email trong vòng 2 giờ làm việc. Gọi hotline nếu bạn cần hỗ trợ
@@ -212,9 +284,6 @@ export default function SupportPage() {
     </div>
   );
 }
-
-
-
 
 
 

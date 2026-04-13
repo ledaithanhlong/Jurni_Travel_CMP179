@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { sampleHotels } from '../data/mockData';
 import { HotelCard } from '../components/ServiceCards';
+import FavoriteButton from '../components/FavoriteButton';
 import {
   IconSearch, IconFilter, IconMap, IconStar, IconCheck, IconUsers,
   IconHotel, IconHotelLarge, IconShield, IconPhone, IconLocation,
@@ -340,6 +341,15 @@ export default function HotelsPage() {
                       <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-full flex items-center gap-1">
                         <IconStar className="w-4 h-4 text-yellow-500 fill-current" />
                         <span className="font-bold text-gray-900">{hotel.star_rating || 4}</span>
+                      </div>
+                      <div className="absolute top-4 left-4">
+                        <FavoriteButton
+                          serviceType="hotel"
+                          serviceId={hotel.id}
+                          serviceName={hotel.name}
+                          meta={hotel.location}
+                          price={hotel.price}
+                        />
                       </div>
                     </div>
                   )}

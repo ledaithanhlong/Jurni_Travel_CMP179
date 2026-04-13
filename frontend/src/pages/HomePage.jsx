@@ -130,7 +130,7 @@ export default function HomePage() {
         <div className="space-y-10 pb-16">
           {/* Service Links */}
           {/* Xanh rất nhạt #1 */}
-          <section className="py-8" style={{ backgroundColor: '#F0F7FF' }}>
+          <section className="py-8" style={{ backgroundColor: '#F8F9FB' }}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <ServiceLink href="/hotels" title="Khách sạn" subtitle="Ưu đãi mỗi ngày" iconType="hotels" />
               <ServiceLink href="/flights" title="Vé máy bay" subtitle="Bay mọi điểm đến" iconType="flights" />
@@ -143,7 +143,7 @@ export default function HomePage() {
           {/* Xanh nhạt #2 */}
           <section
             className="rounded-lg shadow-md p-6 md:p-8"
-            style={{ backgroundColor: '#E3F2FD', borderRadius: '8px' }}
+            style={{ backgroundColor: '#F4F6F9', borderRadius: '8px' }}
           >
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
               <div>
@@ -277,7 +277,7 @@ export default function HomePage() {
 
           {/* Popular Hotels */}
           {/* Xanh nhạt #4 */}
-          <section className="py-8 rounded-lg" style={{ backgroundColor: '#E8F4FD', borderRadius: '8px' }}>
+          <section className="py-8 rounded-lg" style={{ backgroundColor: '#F4F6F9', borderRadius: '8px' }}>
             <SectionHeader title="Nhiều lựa chọn khách sạn" href="/hotels" />
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {hotels.slice(0, 4).map(h => (
@@ -296,7 +296,7 @@ export default function HomePage() {
 
           {/* Top Flights */}
           {/* Xanh rất nhạt #6 */}
-          <section className="py-8" style={{ backgroundColor: '#F5FAFF' }}>
+          <section className="py-8" style={{ backgroundColor: '#FAFBFC' }}>
             <SectionHeader title="Vé máy bay phổ biến" href="/flights" />
             <div className="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4">
               {flights.map(f => (
@@ -315,7 +315,7 @@ export default function HomePage() {
 
           {/* Things to do */}
           {/* Xanh rất nhạt #1 */}
-          <section className="py-8 rounded-lg" style={{ backgroundColor: '#F0F7FF', borderRadius: '8px' }}>
+          <section className="py-8 rounded-lg" style={{ backgroundColor: '#F8F9FB', borderRadius: '8px' }}>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-xl font-bold" style={{ color: '#0D47A1' }}>Hoạt động & Vui chơi</h2>
               <a

@@ -2,44 +2,369 @@
 @tailwind components;
 @tailwind utilities;
 
-body { 
-  @apply bg-white text-gray-900; 
+/* =============================================================
+   JURNI DESIGN SYSTEM — Single Source of Truth
+   Quy tắc 60/30/10:
+     60% Dominant  → --color-bg-*      (nền trắng / xanh nhạt)
+     30% Secondary → --color-primary-* (blue thương hiệu)
+     10% Accent    → --color-accent-*  (cam CTA)
+   Khi cần đổi màu toàn app: chỉ sửa :root bên dưới.
+   ============================================================= */
+:root {
+  /* 60% — DOMINANT: background — neutral near-white, barely perceptible */
+  --color-bg-white: #FFFFFF;
+  --color-bg-soft: #F8F9FB;
+  /* xám trắng rất nhạt */
+  --color-bg-muted: #F4F6F9;
+  /* xám nhạt tinh tế */
+  --color-bg-subtle: #FAFBFC;
+  /* gần như trắng */
+  --color-bg-card: #F0F2F5;
+  /* xám xanh nhạt nhẹ */
+
+  /* 30% — SECONDARY: brand blue */
+  --color-primary-dark: #0D47A1;
+  --color-primary: #1976D2;
+  --color-primary-light: #42A5F5;
+  --color-primary-50: #E3F2FD;
+  --color-primary-100: #BBDEFB;
+  --color-primary-200: #90CAF9;
+
+  /* 30% — SECONDARY: text */
+  --color-text-heading: #0D47A1;
+  --color-text-body: #212121;
+  --color-text-muted: #757575;
+  --color-text-disabled: #BDBDBD;
+  --color-text-inverse: #FFFFFF;
+
+  /* 30% — SECONDARY: border */
+  --color-border-light: #BBDEFB;
+  --color-border-medium: #90CAF9;
+  --color-border-dark: #1976D2;
+
+  /* 10% — ACCENT: CTA only */
+  --color-accent: #FF6B35;
+  --color-accent-hover: #E85520;
+  --color-accent-soft: #FF9800;
+  --color-accent-light: #FFE8E0;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-accent: 0 4px 14px rgba(255, 107, 53, 0.3);
+  --shadow-primary: 0 4px 14px rgba(13, 71, 161, 0.2);
 }
 
-/* Custom scrollbar for better UX */
+/* =============================================================
+   BASE STYLES
+   ============================================================= */
+body {
+  background-color: var(--color-bg-white);
+  color: var(--color-text-body);
+}
+
+/* =============================================================
+   LAYOUT UTILITIES — 60% dominant backgrounds
+   Dùng cho: page wrapper, section xen kẽ
+   ============================================================= */
+@layer components {
+  .section-white {
+    background-color: var(--color-bg-white);
+  }
+
+  .section-soft {
+    background-color: var(--color-bg-soft);
+  }
+
+  .section-muted {
+    background-color: var(--color-bg-muted);
+  }
+
+  .section-subtle {
+    background-color: var(--color-bg-subtle);
+  }
+
+  .section-card {
+    background-color: var(--color-bg-card);
+  }
+
+  /* =============================================================
+     CARD UTILITIES — dùng cho: hotel card, flight card, activity card
+     ============================================================= */
+  .card-base {
+    background-color: var(--color-bg-white);
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    transition: box-shadow 0.25s ease, border-color 0.25s ease, transform 0.25s ease;
+  }
+
+  .card-base:hover {
+    box-shadow: var(--shadow-lg);
+    border-color: var(--color-accent);
+    transform: translateY(-2px);
+  }
+
+  .card-primary {
+    background-color: var(--color-primary-dark);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-primary);
+    transition: box-shadow 0.25s ease, transform 0.25s ease;
+  }
+
+  .card-primary:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+  }
+
+  /* =============================================================
+     BUTTON UTILITIES
+     Dùng: btn-primary cho nav/action xanh (30%), btn-accent CHỈ cho CTA (10%)
+     ============================================================= */
+  .btn-primary {
+    background-color: var(--color-primary-dark);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-md);
+    padding: 10px 24px;
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+    transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-primary:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .btn-primary:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-accent {
+    background-color: var(--color-accent);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-md);
+    padding: 10px 24px;
+    font-weight: 600;
+    box-shadow: var(--shadow-accent);
+    transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-accent:hover {
+    background-color: var(--color-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .btn-accent:active {
+    transform: translateY(0);
+  }
+
+  .btn-outline {
+    background-color: transparent;
+    color: var(--color-primary-dark);
+    border: 2px solid var(--color-primary-dark);
+    border-radius: var(--radius-md);
+    padding: 8px 22px;
+    font-weight: 600;
+    transition: background-color 0.2s ease, color 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-outline:hover {
+    background-color: var(--color-primary-50);
+    border-color: var(--color-primary);
+  }
+
+  .btn-outline-accent {
+    background-color: transparent;
+    color: var(--color-primary-dark);
+    border: 1px solid var(--color-border-medium);
+    border-radius: var(--radius-full);
+    padding: 6px 20px;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .btn-outline-accent:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background-color: var(--color-accent-light);
+  }
+
+  /* =============================================================
+     TEXT UTILITIES
+     ============================================================= */
+  .text-heading {
+    color: var(--color-text-heading);
+  }
+
+  .text-body {
+    color: var(--color-text-body);
+  }
+
+  .text-muted {
+    color: var(--color-text-muted);
+  }
+
+  .text-inverse {
+    color: var(--color-text-inverse);
+  }
+
+  .text-accent {
+    color: var(--color-accent);
+  }
+
+  .text-primary-brand {
+    color: var(--color-primary);
+  }
+
+  /* =============================================================
+     BADGE / TAG UTILITIES
+     Dùng cho: category label, status badge, promo tag
+     ============================================================= */
+  .badge-accent {
+    background-color: var(--color-accent);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .badge-primary {
+    background-color: var(--color-primary);
+    color: var(--color-text-inverse);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .badge-soft {
+    background-color: var(--color-accent-light);
+    color: var(--color-accent);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .badge-primary-soft {
+    background-color: var(--color-primary-50);
+    color: var(--color-primary-dark);
+    border-radius: var(--radius-full);
+    padding: 2px 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* =============================================================
+     INPUT UTILITIES
+     ============================================================= */
+  .input-base {
+    width: 100%;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    padding: 10px 16px;
+    font-size: 0.875rem;
+    color: var(--color-text-body);
+    background-color: var(--color-bg-white);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    outline: none;
+  }
+
+  .input-base:focus {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(255, 107, 53, 0.15);
+  }
+
+  /* =============================================================
+     PRICE DISPLAY — 10% accent, dùng cho giá sản phẩm
+     ============================================================= */
+  .price-tag {
+    color: var(--color-accent);
+    font-weight: 700;
+  }
+
+  .price-tag-lg {
+    color: var(--color-accent);
+    font-weight: 800;
+    font-size: 1.25rem;
+  }
+}
+
+/* =============================================================
+   SCROLLBAR
+   ============================================================= */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--color-bg-soft);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #1e3a8a;
-  border-radius: 4px;
+  background: var(--color-primary);
+  border-radius: var(--radius-full);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #f97316;
+  background: var(--color-accent);
 }
 
-/* Smooth transitions for all interactive elements */
-button, a {
-  transition: all 0.2s ease-in-out;
-}
-
-/* Focus states for accessibility */
+/* =============================================================
+   FOCUS ACCESSIBILITY
+   ============================================================= */
 button:focus-visible,
 a:focus-visible,
 input:focus-visible,
 select:focus-visible {
-  outline: 2px solid #f97316;
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 
-/* Clerk component overrides - ensure all fields are visible */
+/* Smooth transitions for interactive elements */
+button,
+a {
+  transition: all 0.2s ease-in-out;
+}
+
+/* =============================================================
+   CLERK COMPONENT OVERRIDES
+   ============================================================= */
 .cl-formFieldInput,
 .cl-formFieldInput[type="password"],
 .cl-formFieldInput[type="email"],
@@ -68,8 +393,5 @@ select:focus-visible {
 
 .cl-card {
   width: 100% !important;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: var(--shadow-md) !important;
 }
-
-
-

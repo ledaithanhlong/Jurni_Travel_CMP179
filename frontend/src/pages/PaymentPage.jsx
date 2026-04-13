@@ -352,7 +352,6 @@ export default function PaymentPage() {
       const payload = {
         amount: total,
         currency: 'VND',
-        currency: 'VND',
         paymentMethod: form.paymentMethod,
         customer: {
           name: form.fullName,

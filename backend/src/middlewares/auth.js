@@ -2,13 +2,7 @@ import { clerkMiddleware, getAuth, requireAuth as clerkRequireAuth } from '@cler
 import { env } from '../config/env.js';
 import db from '../models/index.js';
 
-// Configure Clerk middleware
-// Clerk Express automatically reads CLERK_SECRET_KEY from environment variables
-// But we can also pass it explicitly
-export const clerkAuth = env.clerk.secretKey
-  ? clerkMiddleware({ secretKey: env.clerk.secretKey })
-  : clerkMiddleware();
-
+export const clerkAuth = clerkMiddleware({ secretKey: env.clerk.secretKey });
 
 export const syncUser = async (req, res, next) => {
   try {

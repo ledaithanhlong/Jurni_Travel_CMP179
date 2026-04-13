@@ -5,19 +5,12 @@ import { useAuth } from '@clerk/clerk-react';
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const UPLOAD_API = `${API}/upload`;
 
-const CATEGORIES = [
-  { value: 'Văn hóa & Lịch sử', icon: '🏛️', label: 'Văn hóa & Lịch sử' },
-  { value: 'Thiên nhiên & Du lịch', icon: '🌴', label: 'Thiên nhiên & Du lịch' },
-  { value: 'Giải trí & Vui chơi', icon: '🎢', label: 'Giải trí & Vui chơi' },
-  { value: 'Thể thao & Mạo hiểm', icon: '🏄', label: 'Thể thao & Mạo hiểm' }
-];
-
 const emptyForm = {
   name: '',
   location: '',
   price: '',
   duration: '',
-  category: '',
+  categoryIds: [],
   description: '',
   image_url: '',
   media: [],
@@ -66,6 +59,7 @@ const getPrimaryImageUrl = (activity) => {
 export default function AdminActivities() {
   const { getToken } = useAuth();
   const [activities, setActivities] = useState([]);
+  const [availableCategories, setAvailableCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -79,6 +73,7 @@ export default function AdminActivities() {
 
   useEffect(() => {
     loadActivities();
+    loadCategories();
   }, []);
 
   const loadActivities = async () => {
@@ -92,6 +87,15 @@ export default function AdminActivities() {
       console.error('Error loading activities:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCategories = async () => {
+    try {
+      const res = await axios.get(`${API}/categories`);
+      setAvailableCategories(res.data || []);
+    } catch (error) {
+      console.error('Error loading categories:', error);
     }
   };
 
@@ -295,6 +299,16 @@ export default function AdminActivities() {
     }));
   };
 
+  const handleCategoryToggle = (categoryId) => {
+    setForm(prev => {
+      const ids = [...prev.categoryIds];
+      const index = ids.indexOf(categoryId);
+      if (index === -1) ids.push(categoryId);
+      else ids.splice(index, 1);
+      return { ...prev, categoryIds: ids };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -310,12 +324,12 @@ export default function AdminActivities() {
         location: form.location,
         price: Number(form.price),
         duration: form.duration || null,
-        category: form.category || null,
         description: form.description || null,
         image_url: getPrimaryImageUrl(form) || form.image_url || null,
         includes: form.includes.length > 0 ? form.includes : null,
         meeting_point: form.meeting_point || null,
-        policies: Object.values(form.policies).some(v => v) ? form.policies : null
+        policies: Object.values(form.policies).some(v => v) ? form.policies : null,
+        categoryIds: form.categoryIds
       };
 
       let savedActivity;
@@ -350,13 +364,14 @@ export default function AdminActivities() {
 
   const handleEdit = (activity) => {
     const normalizedMedia = normalizeMedia(activity.media);
+    const categoryIds = (activity.categories || []).map(c => c.id);
     setEditing(activity.id);
     setForm({
       name: activity.name || '',
       location: activity.location || '',
       price: activity.price || '',
       duration: activity.duration || '',
-      category: activity.category || '',
+      categoryIds: categoryIds,
       description: activity.description || '',
       image_url: getPrimaryImageUrl(activity) || '',
       media: normalizedMedia,
@@ -468,19 +483,23 @@ export default function AdminActivities() {
                     />
                   </div>
                   <div className="col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Danh mục</label>
-                    <select
-                      value={form.category}
-                      onChange={(e) => setForm({ ...form, category: e.target.value })}
-                      className="w-full border rounded-lg px-3 py-2"
-                    >
-                      <option value="">- Chọn danh mục -</option>
-                      {CATEGORIES.map(cat => (
-                        <option key={cat.value} value={cat.value}>
-                          {cat.icon} {cat.label}
-                        </option>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục (Chọn nhiều)</label>
+                    <div className="flex flex-wrap gap-2">
+                      {availableCategories.map(cat => (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => handleCategoryToggle(cat.id)}
+                          className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${
+                            form.categoryIds.includes(cat.id)
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                          }`}
+                        >
+                          {cat.icon} {cat.name}
+                        </button>
                       ))}
-                    </select>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -719,7 +738,7 @@ export default function AdminActivities() {
                     setShowForm(false);
                     setEditing(null);
                     setForm(emptyForm);
-                      setInitialMedia([]);
+                    setInitialMedia([]);
                   }}
                   className="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500"
                 >
@@ -752,38 +771,63 @@ export default function AdminActivities() {
                         <img src={getPrimaryImageUrl(activity)} alt={activity.name} className="w-16 h-16 object-cover rounded" />
                       )}
                       <div>
-                        <div className="font-semibold">{activity.name}</div>
-                        {Array.isArray(activity.media) && activity.media.length > 0 && (
-                          <div className="text-xs text-gray-500">{activity.media.length} media</div>
-                        )}
-                        {activity.highlights && activity.highlights.length > 0 && (
-                          <div className="text-xs text-gray-500">✨ {activity.highlights.length} điểm nổi bật</div>
-                        )}
+                        <div className="font-semibold text-gray-800">{activity.name}</div>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                           {Array.isArray(activity.media) && activity.media.length > 0 && (
+                            <span className="text-[10px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-500">{activity.media.length} media</span>
+                          )}
+                          {activity.highlights && activity.highlights.length > 0 && (
+                            <span className="text-[10px] bg-orange-50 px-1.5 py-0.5 rounded text-orange-600">✨ {activity.highlights.length} highlights</span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4">{activity.location}</td>
+                  <td className="px-6 py-4 text-sm text-gray-600">{activity.location}</td>
                   <td className="px-6 py-4">
                     {activity.duration && (
-                      <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">{activity.duration}</span>
+                      <span className="bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded text-[10px] font-bold uppercase">{activity.duration}</span>
                     )}
                   </td>
                   <td className="px-6 py-4">
-                    {activity.category && (
-                      <span className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">{activity.category}</span>
-                    )}
+                    <div className="flex flex-wrap gap-1 max-w-[150px]">
+                      {(activity.categories || []).length > 0 ? (
+                        activity.categories.map(cat => (
+                          <span key={cat.id} className="bg-purple-50 text-purple-700 border border-purple-100 px-2 py-0.5 rounded text-[10px] font-semibold">
+                            {cat.name}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-gray-400 text-xs italic">Chưa gán</span>
+                      )}
+                    </div>
                   </td>
-                  <td className="px-6 py-4 text-orange-600 font-bold">
+                  <td className="px-6 py-4 text-orange-600 font-bold whitespace-nowrap">
                     {formatPrice(activity.price)} đ
                   </td>
                   <td className="px-6 py-4">
-                    <button onClick={() => handleEdit(activity)} className="text-blue-600 mr-3 hover:text-blue-800">Sửa</button>
-                    <button onClick={() => handleDelete(activity.id)} className="text-red-500 hover:text-red-700">Xóa</button>
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => handleEdit(activity)} className="p-2 hover:bg-blue-50 rounded-lg text-blue-600 transition">
+                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-5M16.5 3.5a2.121 2.121 0 113 3L7 19l-4 1 1-4L16.5 3.5z" />
+                         </svg>
+                      </button>
+                      <button onClick={() => handleDelete(activity.id)} className="p-2 hover:bg-red-50 rounded-lg text-red-500 transition">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          {activities.length === 0 && (
+            <div className="p-12 text-center text-gray-500 italic">
+              Chưa có dữ liệu hoạt động. Hãy thêm mới!
+            </div>
+          )}
         </div>
       </div>
     </div>

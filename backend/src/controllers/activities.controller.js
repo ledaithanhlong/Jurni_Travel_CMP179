@@ -9,7 +9,14 @@ const activityMediaInclude = {
 export const listActivities = async (req, res, next) => {
   try {
     const rows = await db.Activity.findAll({
-      include: [activityMediaInclude],
+      include: [
+        activityMediaInclude,
+        {
+          model: db.Category,
+          as: 'categories',
+          through: { attributes: [] }
+        }
+      ],
       order: [
         ['id', 'DESC'],
         [{ model: db.ActivityMedia, as: 'media' }, 'is_thumbnail', 'DESC'],
@@ -22,19 +29,45 @@ export const listActivities = async (req, res, next) => {
 };
 
 export const createActivity = async (req, res, next) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const created = await db.Activity.create(req.body);
+    const { categoryIds, ...data } = req.body;
+    const created = await db.Activity.create(data, { transaction });
+    
+    if (categoryIds && Array.isArray(categoryIds)) {
+      await created.setCategories(categoryIds, { transaction });
+    }
+    
+    await transaction.commit();
     res.status(201).json(created);
-  } catch (e) { next(e); }
+  } catch (e) {
+    await transaction.rollback();
+    next(e);
+  }
 };
 
 export const updateActivity = async (req, res, next) => {
+  const transaction = await db.sequelize.transaction();
   try {
-    const row = await db.Activity.findByPk(req.params.id);
-    if (!row) return res.status(404).json({ error: 'Not found' });
-    await row.update(req.body);
+    const { categoryIds, ...data } = req.body;
+    const row = await db.Activity.findByPk(req.params.id, { transaction });
+    if (!row) {
+      await transaction.rollback();
+      return res.status(404).json({ error: 'Not found' });
+    }
+    
+    await row.update(data, { transaction });
+    
+    if (categoryIds && Array.isArray(categoryIds)) {
+      await row.setCategories(categoryIds, { transaction });
+    }
+    
+    await transaction.commit();
     res.json(row);
-  } catch (e) { next(e); }
+  } catch (e) {
+    await transaction.rollback();
+    next(e);
+  }
 };
 
 export const deleteActivity = async (req, res, next) => {
@@ -247,5 +280,3 @@ export const setActivityMediaThumbnail = async (req, res, next) => {
     next(e);
   }
 };
-
-

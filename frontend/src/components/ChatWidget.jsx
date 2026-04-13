@@ -6,8 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 // Socket connects to base server URL (without /api path)
 const SOCKET_URL = API_URL.replace(/\/api$/, '');
 
-export default function ChatWidget() {
-  const { user } = useUser();
+function ChatWidgetBase({ user }) {
   const [isOpen, setIsOpen] = useState(false);
   const [chatType, setChatType] = useState(null); // null, 'ai', 'human'
   const [conversationId, setConversationId] = useState(null);
@@ -403,4 +402,17 @@ export default function ChatWidget() {
       )}
     </div>
   );
+}
+
+function ClerkAwareChatWidget() {
+  const { user } = useUser();
+  return <ChatWidgetBase user={user} />;
+}
+
+export default function ChatWidget({ clerkEnabled = false }) {
+  if (clerkEnabled) {
+    return <ClerkAwareChatWidget />;
+  }
+
+  return <ChatWidgetBase user={null} />;
 }

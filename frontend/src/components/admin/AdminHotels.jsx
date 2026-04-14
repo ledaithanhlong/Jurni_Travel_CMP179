@@ -90,7 +90,8 @@ const emptyForm = {
   allows_pets: false,
   is_smoking_allowed: false,
   approval_note: '',
-  status: 'pending'
+  status: 'pending',
+  video_url: '' // Thêm video_url vào form mặc định
 };
 
 const statusBadgeClass = {
@@ -247,7 +248,8 @@ export default function AdminHotels() {
     allows_pets: Boolean(hotel.allows_pets),
     is_smoking_allowed: Boolean(hotel.is_smoking_allowed),
     approval_note: hotel.approval_note || '',
-    status: hotel.status || 'pending'
+    status: hotel.status || 'pending',
+    video_url: hotel.video_url || '' // Đồng bộ video_url khi chỉnh sửa
   });
 
   const addAmenity = () => {
@@ -645,25 +647,37 @@ export default function AdminHotels() {
                     />
                     {uploading && <p className="text-sm text-gray-500 mt-1">Đang upload...</p>}
                   </div>
-                  {form.images.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Thư viện hình ảnh</label>
-                      <div className="grid grid-cols-4 gap-2">
-                        {form.images.map((img, idx) => (
-                          <div key={idx} className="relative">
-                            <img src={img} alt={`Image ${idx + 1}`} className="w-full h-24 object-cover rounded" />
-                            <button
-                              type="button"
-                              onClick={() => setForm({ ...form, images: form.images.filter((_, i) => i !== idx) })}
-                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs"
-                            >
-                              ×
-                            </button>
-                          </div>
-                        ))}
+                  {/* Video URL */}
+                  <div className="border-t pt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Link Video giới thiệu (YouTube URL)</label>
+                    <input
+                      type="url"
+                      value={form.video_url}
+                      onChange={(e) => setForm({ ...form, video_url: e.target.value })}
+                      className="w-full border rounded px-3 py-2"
+                      placeholder="Ví dụ: https://www.youtube.com/watch?v=..."
+                    />
+                    <p className="text-xs text-gray-400 mt-1 italic">* Hệ thống hỗ trợ hiển thị video trực tiếp từ YouTube.</p>
+                  </div>
+                    {form.images && form.images.length > 0 && (
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Thư viện hình ảnh</label>
+                        <div className="grid grid-cols-4 gap-2">
+                          {form.images.map((img, idx) => (
+                            <div key={idx} className="relative">
+                              <img src={img} alt={`Image ${idx + 1}`} className="w-full h-24 object-cover rounded" />
+                              <button
+                                type="button"
+                                onClick={() => setForm({ ...form, images: form.images.filter((_, i) => i !== idx) })}
+                                className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 text-xs"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </div>
 

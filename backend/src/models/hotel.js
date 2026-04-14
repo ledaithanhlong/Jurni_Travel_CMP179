@@ -9,6 +9,7 @@ export default (sequelize, DataTypes) => {
     description: { type: DataTypes.TEXT },
     image_url: { type: DataTypes.STRING },
     images: { type: DataTypes.JSON, defaultValue: [] },
+    video_url: { type: DataTypes.STRING }, // Thêm trường video_url ở đây
     check_in_time: { type: DataTypes.STRING, allowNull: false },
     check_out_time: { type: DataTypes.STRING, allowNull: false },
     total_floors: { type: DataTypes.INTEGER },

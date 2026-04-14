@@ -79,7 +79,8 @@ const formatHotelData = (hotel) => {
     status: formatted.status,
     approved_by: formatted.approved_by,
     approved_at: formatted.approved_at,
-    approval_note: formatted.approval_note
+    approval_note: formatted.approval_note,
+    video_url: formatted.video_url || '' // Thêm video_url ở đây
   };
 };
 

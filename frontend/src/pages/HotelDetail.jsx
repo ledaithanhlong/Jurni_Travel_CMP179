@@ -33,13 +33,28 @@ export default function HotelDetail() {
     loadHotel();
   }, [id, navigate]);
 
+  // Tự động cập nhật số phòng khi số khách thay đổi
+  useEffect(() => {
+    const capacity = selectedRoomType?.capacity || 2;
+    const roomsNeeded = Math.ceil(booking.guests / capacity);
+    if (booking.rooms !== roomsNeeded) {
+      setBooking(prev => ({ ...prev, rooms: roomsNeeded }));
+    }
+  }, [booking.guests, selectedRoomType]);
+
   const formatPrice = (price) => new Intl.NumberFormat('vi-VN').format(price || 0);
 
   const calculateTotal = () => {
     if (!hotel || !booking.checkIn || !booking.checkOut) return 0;
     const nights = Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24));
     const pricePerNight = selectedRoomType ? selectedRoomType.price : (hotel.price || 0);
-    return pricePerNight * nights * booking.rooms;
+
+    // Lấy sức chứa (mặc định là 2 nếu không có dữ liệu)
+    const capacity = selectedRoomType?.capacity || 2;
+    // Tính số phòng cần thiết: Ví dụ 3 khách / 2 chỗ = 1.5 -> làm tròn lên thành 2 phòng
+    const roomsNeeded = Math.ceil(booking.guests / capacity);
+
+    return pricePerNight * nights * roomsNeeded;
   };
 
   const handleBook = () => {
@@ -140,6 +155,7 @@ export default function HotelDetail() {
     { id: 'info', label: 'Thông tin' },
     ...(amenitiesList.length > 0 ? [{ id: 'amenities', label: 'Tiện ích' }] : []),
     ...(roomTypes.length > 0 ? [{ id: 'rooms', label: 'Loại phòng' }] : []),
+    { id: 'gallery', label: 'Hình ảnh & Video' },
     ...((policies && Object.values(policies).some(Boolean)) || hotel.check_in_time ? [{ id: 'policy', label: 'Chính sách' }] : []),
     ...(nearbyAttractions.length > 0 || publicTransport.length > 0 ? [{ id: 'nearby', label: 'Xung quanh' }] : []),
   ];
@@ -229,11 +245,10 @@ export default function HotelDetail() {
               <div className="flex border-b border-gray-100 overflow-x-auto">
                 {tabs.map(tab => (
                   <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                    className={`flex-shrink-0 px-6 py-4 text-sm font-semibold transition-all border-b-2 ${
-                      activeTab === tab.id
-                        ? 'border-blue-600 text-blue-600 bg-blue-50/50'
-                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-                    }`}>
+                    className={`flex-shrink-0 px-6 py-4 text-sm font-semibold transition-all border-b-2 ${activeTab === tab.id
+                      ? 'border-blue-600 text-blue-600 bg-blue-50/50'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                      }`}>
                     {tab.label}
                   </button>
                 ))}
@@ -342,11 +357,10 @@ export default function HotelDetail() {
                     {roomTypes.map((rt, idx) => (
                       <div key={idx}
                         onClick={() => setSelectedRoomType(rt)}
-                        className={`border-2 rounded-2xl p-5 cursor-pointer transition-all ${
-                          selectedRoomType === rt
-                            ? 'border-blue-500 bg-blue-50 shadow-md'
-                            : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
-                        }`}>
+                        className={`border-2 rounded-2xl p-5 cursor-pointer transition-all ${selectedRoomType === rt
+                          ? 'border-blue-500 bg-blue-50 shadow-md'
+                          : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50/30'
+                          }`}>
                         <div className="flex items-start justify-between mb-3">
                           <div>
                             <div className="font-bold text-gray-900 text-lg">{rt.type}</div>
@@ -372,6 +386,63 @@ export default function HotelDetail() {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {/* ── Tab: Gallery ── */}
+                {activeTab === 'gallery' && (
+                  <div className="space-y-8 animate-fadeIn">
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-6">Thư viện hình ảnh</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        {/* Kiểm tra mảng ảnh có dữ liệu không, nếu không thì dùng ảnh mặc định */}
+                        {(hotel.images && hotel.images.length > 0
+                          ? hotel.images
+                          : [hotel.image_url, hotel.image_url, hotel.image_url, hotel.image_url].filter(Boolean)
+                        ).map((img, idx) => (
+                          <div key={idx} className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                            <img
+                              src={img}
+                              alt={`Gallery ${idx}`}
+                              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+                              onError={(e) => {
+                                e.target.src = 'https://via.placeholder.com/800x600?text=Jurni+Travel';
+                              }}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Phần Video giới thiệu */}
+                    <div>
+                      <h3 className="text-xl font-bold text-gray-900 mb-6">Video giới thiệu</h3>
+                      <div className="aspect-video w-full overflow-hidden rounded-3xl bg-gray-900 shadow-xl border-4 border-white overflow-hidden">
+                        {(hotel.video_url && hotel.video_url.trim() !== "") ? (
+                          <iframe
+                            className="w-full h-full"
+                            src={hotel.video_url.includes('youtube.com') || hotel.video_url.includes('youtu.be')
+                              ? hotel.video_url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+                              : hotel.video_url
+                            }
+                            title="Hotel Video"
+                            frameBorder="0"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                          ></iframe>
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center text-white/50 bg-gradient-to-br from-gray-800 to-gray-900 space-y-4">
+                            <div className="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center border-2 border-white/20">
+                              <svg className="w-10 h-10" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" /></svg>
+                            </div>
+                            <div className="text-center px-6">
+                              <p className="font-bold text-white text-lg">Video giới thiệu đang được cập nhật</p>
+                              <p className="text-sm">Vui lòng quay lại sau để xem thêm chi tiết trải nghiệm</p>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -488,9 +559,8 @@ export default function HotelDetail() {
                     <div className="space-y-2">
                       {roomTypes.map((rt, idx) => (
                         <button key={idx} onClick={() => setSelectedRoomType(rt)}
-                          className={`w-full p-3 rounded-xl border-2 transition text-left ${
-                            selectedRoomType === rt ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
-                          }`}>
+                          className={`w-full p-3 rounded-xl border-2 transition text-left ${selectedRoomType === rt ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-blue-300'
+                            }`}>
                           <div className="flex justify-between items-center">
                             <div>
                               <div className="font-semibold text-gray-900 text-sm">{rt.type}</div>
@@ -543,15 +613,16 @@ export default function HotelDetail() {
                     <span>{selectedRoomType ? formatPrice(selectedRoomType.price) : formatPrice(hotel.price)} VND × {nights} đêm</span>
                     <span>{formatPrice((selectedRoomType ? selectedRoomType.price : hotel.price) * nights)} VND</span>
                   </div>
-                  {booking.rooms > 1 && (
-                    <div className="flex justify-between text-gray-600">
-                      <span>× {booking.rooms} phòng</span>
-                      <span></span>
-                    </div>
-                  )}
+                  <div className="flex justify-between text-gray-600">
+                    <span>× {booking.rooms} phòng ({booking.guests} khách)</span>
+                    <span></span>
+                  </div>
                   <div className="border-t border-blue-200 pt-2 flex justify-between items-center font-bold">
                     <span className="text-gray-900">Tổng tiền</span>
-                    <span className="text-xl text-blue-600">{formatPrice(totalPrice)} VND</span>
+                    <div className="text-right">
+                      <span className="text-xl text-blue-600 block">{formatPrice(totalPrice)} VND</span>
+                      <span className="text-[10px] text-gray-400 font-normal">(Sức chứa: {selectedRoomType?.capacity || 2} người/phòng)</span>
+                    </div>
                   </div>
                 </div>
               )}

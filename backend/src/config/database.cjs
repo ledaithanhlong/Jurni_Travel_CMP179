@@ -6,6 +6,7 @@ module.exports = {
     password: process.env.DB_PASS || null,
     database: process.env.DB_NAME || 'Jurni_db',
     host: process.env.DB_HOST || '127.0.0.1',
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
     dialect: process.env.DB_DIALECT || 'mysql',
     logging: false
   },
@@ -14,6 +15,7 @@ module.exports = {
     password: null,
     database: 'Jurni_db_test',
     host: '127.0.0.1',
+    port: 3306,
     dialect: 'mysql',
     logging: false
   },
@@ -22,6 +24,7 @@ module.exports = {
     password: process.env.DB_PASS,
     database: process.env.DB_NAME,
     host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
     dialect: process.env.DB_DIALECT || 'mysql',
     logging: false
   }

@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { sampleHotels, sampleActivities, sampleFlights } from '../data/mockData';
 import JurniHero from '../components/JurniHero.jsx';
 import ServiceLink from '../components/ServiceLink.jsx';
 import { SectionHeader } from '../components/Section.jsx';
@@ -23,20 +22,16 @@ export default function HomePage() {
           axios.get(`${API}/activities`),
           axios.get(`${API}/vouchers`)
         ]);
-        const hotelsData = h.data && h.data.length > 0 ? h.data : sampleHotels;
-        const flightsData = f.data && f.data.length > 0 ? f.data : sampleFlights;
-        const activitiesData = a.data && a.data.length > 0 ? a.data : sampleActivities;
-        const vouchersData = v.data || [];
-
-        setHotels(hotelsData.slice(0, 6));
-        setFlights(flightsData.slice(0, 6));
-        setActivities(activitiesData.slice(0, 6));
-        setVouchers(vouchersData);
+        setHotels((h.data || []).slice(0, 6));
+        setFlights((f.data || []).slice(0, 6));
+        setActivities((a.data || []).slice(0, 6));
+        setVouchers(v.data || []);
       } catch (e) {
-        console.error('Homepage data fetch error, using samples:', e);
-        setHotels(sampleHotels.slice(0, 6));
-        setFlights(sampleFlights.slice(0, 6));
-        setActivities(sampleActivities.slice(0, 6));
+        console.error('Homepage data fetch error:', e);
+        setHotels([]);
+        setFlights([]);
+        setActivities([]);
+        setVouchers([]);
       }
     })();
   }, []);

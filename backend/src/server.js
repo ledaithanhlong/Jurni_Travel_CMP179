@@ -7,6 +7,12 @@ import { env } from './config/env.js';
 import db from './models/index.js';
 import apiRouter from './routes/index.js';
 import { setupChatSocket } from './socket/chatHandler.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+// __dirname will be src/, but we want uploads to be in the project root, so we go up one level
+const projectRoot = path.join(path.dirname(__filename), '..');
 
 const app = express();
 const httpServer = createServer(app);
@@ -46,8 +52,12 @@ const io = new Server(httpServer, {
 // Setup chat socket handlers
 setupChatSocket(io);
 
+app.use('/uploads', express.static(path.join(projectRoot, 'uploads')));
+
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/api/v1/health', (req, res) => res.json({ ok: true }));
 app.use('/api', apiRouter);
+app.use('/api/v1', apiRouter);
 
 app.use((err, req, res, next) => {
   // eslint-disable-next-line no-console

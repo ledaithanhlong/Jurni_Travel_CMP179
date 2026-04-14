@@ -11,6 +11,7 @@ import Hotel from './hotel.js';
 import Flight from './flight.js';
 import Car from './car.js';
 import Activity from './activity.js';
+import Review from './review.js';
 
 const db = {
     isMongo: true,
@@ -25,6 +26,7 @@ const db = {
     Flight,
     Car,
     Activity,
+    Review,
 };
 
 db.connect = async () => {
@@ -48,6 +50,21 @@ db.connect = async () => {
 
     try {
         await mongoose.connect(uri);
+
+        try {
+            const cols = await mongoose.connection.db.listCollections().toArray();
+            for (const c of cols) {
+                const col = mongoose.connection.db.collection(c.name);
+                const idxs = await col.indexes();
+                const legacy = idxs.find((idx) => idx?.name === 'user_1_tour_1' || (idx?.key?.user === 1 && idx?.key?.tour === 1));
+                if (legacy) {
+                    await col.dropIndex(legacy.name);
+                }
+            }
+            await Review.syncIndexes();
+        } catch (e) {
+        }
+
         return mongoose.connection;
     } catch (error) {
         console.error('MongoDB connection error:', error);

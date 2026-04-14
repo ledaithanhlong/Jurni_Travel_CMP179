@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { clerkAuth, requireRole } from '../middlewares/auth.js';
+import { cacheMiddleware } from '../middlewares/cache.js';
 import {
   listActivities,
   createActivity,
@@ -14,8 +15,8 @@ import {
 } from '../controllers/activities.controller.js';
 
 const router = Router();
-router.get('/', listActivities);
-router.get('/:activityId/media', listActivityMedia);
+router.get('/', cacheMiddleware(300), listActivities);
+router.get('/:activityId/media', cacheMiddleware(300), listActivityMedia);
 router.post('/', clerkAuth, requireRole('admin'), createActivity);
 router.put('/:id', clerkAuth, requireRole('admin'), updateActivity);
 router.delete('/:id', clerkAuth, requireRole('admin'), deleteActivity);

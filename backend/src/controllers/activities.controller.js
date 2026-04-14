@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { clearCache } from '../middlewares/cache.js';
 
 const activityMediaInclude = {
   model: db.ActivityMedia,
@@ -39,6 +40,7 @@ export const createActivity = async (req, res, next) => {
     }
     
     await transaction.commit();
+    clearCache('/activities');
     res.status(201).json(created);
   } catch (e) {
     await transaction.rollback();
@@ -63,6 +65,7 @@ export const updateActivity = async (req, res, next) => {
     }
     
     await transaction.commit();
+    clearCache('/activities');
     res.json(row);
   } catch (e) {
     await transaction.rollback();
@@ -75,6 +78,7 @@ export const deleteActivity = async (req, res, next) => {
     const row = await db.Activity.findByPk(req.params.id);
     if (!row) return res.status(404).json({ error: 'Not found' });
     await row.destroy();
+    clearCache('/activities');
     res.json({ ok: true });
   } catch (e) { next(e); }
 };
@@ -143,6 +147,7 @@ export const createActivityMedia = async (req, res, next) => {
     }, { transaction });
 
     await transaction.commit();
+    clearCache(`/activities/${activityId}/media`);
     res.status(201).json(created);
   } catch (e) {
     await transaction.rollback();
@@ -165,6 +170,9 @@ export const updateActivityMedia = async (req, res, next) => {
       return res.status(404).json({ error: 'Media not found' });
     }
 
+    const prevUrl = item.url;
+    const prevPublicId = item.public_id;
+
     const data = {};
     const allowedFields = ['type', 'url', 'public_id', 'caption', 'is_thumbnail', 'sort_order'];
     for (const field of allowedFields) {
@@ -185,6 +193,28 @@ export const updateActivityMedia = async (req, res, next) => {
 
     await item.update(data, { transaction });
     await transaction.commit();
+
+    if (data.url && String(data.url) !== String(prevUrl)) {
+      try {
+        await db.MediaAsset.update(
+          {
+            url: String(data.url),
+            public_id: data.public_id !== undefined ? (data.public_id ? String(data.public_id) : null) : (prevPublicId ? String(prevPublicId) : null),
+          },
+          {
+            where: {
+              category: 'activity',
+              entity_type: 'activity',
+              entity_id: Number(activityId),
+              url: String(prevUrl),
+            }
+          }
+        );
+      } catch {
+      }
+    }
+
+    clearCache(`/activities/${activityId}/media`);
     res.json(item);
   } catch (e) {
     await transaction.rollback();
@@ -201,7 +231,20 @@ export const deleteActivityMedia = async (req, res, next) => {
 
     if (!item) return res.status(404).json({ error: 'Media not found' });
 
+    const url = item.url;
     await item.destroy();
+    try {
+      await db.MediaAsset.destroy({
+        where: {
+          category: 'activity',
+          entity_type: 'activity',
+          entity_id: Number(activityId),
+          url: String(url),
+        }
+      });
+    } catch {
+    }
+    clearCache(`/activities/${activityId}/media`);
     res.json({ ok: true });
   } catch (e) { next(e); }
 };
@@ -245,6 +288,7 @@ export const reorderActivityMedia = async (req, res, next) => {
     });
 
     await transaction.commit();
+    clearCache(`/activities/${activityId}/media`);
     res.json(updated);
   } catch (e) {
     await transaction.rollback();
@@ -274,6 +318,7 @@ export const setActivityMediaThumbnail = async (req, res, next) => {
 
     await item.update({ is_thumbnail: true }, { transaction });
     await transaction.commit();
+    clearCache(`/activities/${activityId}/media`);
     res.json(item);
   } catch (e) {
     await transaction.rollback();

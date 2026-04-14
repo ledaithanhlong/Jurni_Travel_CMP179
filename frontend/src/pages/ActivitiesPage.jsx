@@ -18,6 +18,8 @@ export default function ActivitiesPage() {
   const [categories, setCategories] = useState([]);
   const [selectedActivity, setSelectedActivity] = useState(null);
   const [activeCategory, setActiveCategory] = useState('All');
+  const [reviews, setReviews] = useState([]);
+  const [reviewsData, setReviewsData] = useState({ count: 0, average_rating: 0 });
 
   // Booking details
   const [tourDate, setTourDate] = useState('');
@@ -46,6 +48,19 @@ export default function ActivitiesPage() {
   };
 
   useEffect(() => { loadData(); }, [id]);
+
+  useEffect(() => {
+    if (selectedActivity) {
+      axios.get(`${API}/reviews?service_type=activity&service_id=${selectedActivity.id}`)
+        .then(res => {
+          setReviews(res.data.items || []);
+          setReviewsData({ count: res.data.count || 0, average_rating: res.data.average_rating || 0 });
+        })
+        .catch(err => {
+          console.error('Error fetching reviews:', err);
+        });
+    }
+  }, [selectedActivity]);
 
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN').format(price || 0);
@@ -93,6 +108,8 @@ export default function ActivitiesPage() {
     setSelectedActivity(null);
     setTourDate('');
     setParticipants(1);
+    setReviews([]);
+    setReviewsData({ count: 0, average_rating: 0 });
   };
 
   const filteredActivities = rows.filter(act => {
@@ -269,6 +286,60 @@ export default function ActivitiesPage() {
                         </div>
                      </div>
                    )}
+
+                   {/* Reviews Section */}
+                   <div className="mt-8 border-t pt-8">
+                      <div className="flex items-center justify-between mb-6">
+                         <h3 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                            <IconStar className="w-6 h-6 text-yellow-400" />
+                            Đánh giá của người dùng
+                         </h3>
+                         {reviewsData.count > 0 && (
+                           <div className="flex items-center gap-2 bg-yellow-50 px-4 py-2 rounded-xl border border-yellow-100">
+                              <span className="font-extrabold text-xl text-yellow-600">{reviewsData.average_rating}</span>
+                              <div className="flex text-yellow-400">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg key={i} className={`w-4 h-4 ${i < Math.round(reviewsData.average_rating) ? 'fill-current' : 'text-gray-300'}`} viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                                ))}
+                              </div>
+                              <span className="text-sm font-bold text-gray-500">({reviewsData.count} đánh giá)</span>
+                           </div>
+                         )}
+                      </div>
+
+                      {reviews.length > 0 ? (
+                        <div className="space-y-4">
+                           {reviews.map((review) => (
+                             <div key={review.id} className="bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                                <div className="flex items-center justify-between mb-3">
+                                   <div className="flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                                         {String(review.user?.name || 'K').charAt(0).toUpperCase()}
+                                      </div>
+                                      <div>
+                                         <p className="font-bold text-gray-900">{review.user?.name || 'Khách hàng ẩn danh'}</p>
+                                         <p className="text-xs text-gray-500 font-medium">{new Date(review.createdAt).toLocaleDateString('vi-VN')}</p>
+                                      </div>
+                                   </div>
+                                   <div className="flex text-yellow-400">
+                                      {[...Array(5)].map((_, i) => (
+                                        <svg key={i} className={`w-4 h-4 ${i < review.rating ? 'fill-current' : 'text-gray-300'}`} viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                                      ))}
+                                   </div>
+                                </div>
+                                {review.comment && (
+                                  <p className="text-gray-600 italic">"{review.comment}"</p>
+                                )}
+                             </div>
+                           ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                           <IconStar className="mx-auto w-10 h-10 text-gray-300 mb-2" />
+                           <p className="text-gray-500 font-medium">Chưa có đánh giá nào cho hoạt động này.</p>
+                        </div>
+                      )}
+                   </div>
                 </div>
 
                 <div className="space-y-6">

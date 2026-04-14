@@ -2,13 +2,25 @@ import { clerkMiddleware, getAuth, requireAuth as clerkRequireAuth } from '@cler
 import { env } from '../config/env.js';
 import db from '../models/index.js';
 
-// Configure Clerk middleware
-// Clerk Express automatically reads CLERK_SECRET_KEY from environment variables
-// But we can also pass it explicitly
-export const clerkAuth = env.clerk.secretKey
-  ? clerkMiddleware({ secretKey: env.clerk.secretKey })
-  : clerkMiddleware();
+export const clerkAuth = clerkMiddleware({ secretKey: env.clerk.secretKey });
 
+const fetchClerkUserEmail = async (clerkId) => {
+  try {
+    if (!env.clerk.secretKey || !clerkId) return null;
+    const res = await fetch(`https://api.clerk.com/v1/users/${clerkId}`, {
+      headers: { Authorization: `Bearer ${env.clerk.secretKey}` }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const emailAddresses = Array.isArray(data?.email_addresses) ? data.email_addresses : [];
+    const primaryId = data?.primary_email_address_id;
+    const primary = primaryId ? emailAddresses.find((e) => e?.id === primaryId) : null;
+    const raw = primary?.email_address || emailAddresses[0]?.email_address || null;
+    return raw ? String(raw) : null;
+  } catch {
+    return null;
+  }
+};
 
 export const syncUser = async (req, res, next) => {
   try {
@@ -59,6 +71,17 @@ export const requireRole = (role) => async (req, res, next) => {
         (auth.sessionClaims.email_addresses && Array.isArray(auth.sessionClaims.email_addresses)
           ? auth.sessionClaims.email_addresses[0]?.email_address || auth.sessionClaims.email_addresses[0]
           : null);
+    }
+
+    if (!email || String(email).includes('@pending.clerk')) {
+      const resolved = await fetchClerkUserEmail(clerkId);
+      if (resolved) {
+        email = resolved;
+        if (user && (String(user.email).includes('@pending.clerk') || user.email !== resolved)) {
+          await user.update({ email: resolved });
+          user.email = resolved;
+        }
+      }
     }
 
     console.log('requireRole: User found:', !!user, 'Email:', email, 'User role:', user?.role);

@@ -10,7 +10,10 @@ export default defineConfig(async () => {
   }
   return {
     plugins: reactPlugin ? [reactPlugin()] : [],
-    server: { port: 5173 }
+    server: {
+    port: 5173,
+    strictPort: true,
+  },
   };
 });
 

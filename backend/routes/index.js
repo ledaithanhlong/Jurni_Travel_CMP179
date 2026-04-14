@@ -10,6 +10,7 @@ import flightsRouter from './flights.routes.js';
 import carsRouter from './cars.routes.js';
 import activitiesRouter from './activities.routes.js';
 import paymentsRouter from './payments.routes.js';
+import reviewsRouter from './reviews.routes.js';
 
 const v1Router = Router();
 
@@ -24,6 +25,7 @@ v1Router.use('/flights', flightsRouter);
 v1Router.use('/cars', carsRouter);
 v1Router.use('/activities', activitiesRouter);
 v1Router.use('/payments', paymentsRouter);
+v1Router.use('/reviews', reviewsRouter);
 
 const router = Router();
 router.use('/v1', v1Router);

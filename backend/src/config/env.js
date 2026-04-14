@@ -6,6 +6,7 @@ export const env = {
   port: process.env.PORT || 5000,
   db: {
     host: process.env.DB_HOST || '127.0.0.1',
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
     name: process.env.DB_NAME || 'Jurni_db',
     user: process.env.DB_USER || 'root',
     pass: process.env.DB_PASS || '',

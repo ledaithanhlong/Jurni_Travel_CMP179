@@ -16,6 +16,7 @@ export default (sequelize, DataTypes) => {
     User.hasMany(models.Booking, { foreignKey: 'user_id', as: 'bookings' });
     User.hasMany(models.Favorite, { foreignKey: 'user_id', as: 'favorites' });
     User.hasMany(models.Notification, { foreignKey: 'user_id', as: 'notifications' });
+    User.hasMany(models.Review, { foreignKey: 'user_id', as: 'reviews' });
   };
 
   return User;

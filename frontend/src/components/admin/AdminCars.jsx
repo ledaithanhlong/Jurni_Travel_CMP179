@@ -56,6 +56,10 @@ export default function AdminCars() {
       const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
+      formData.append('category', 'car');
+      formData.append('entity_type', 'car');
+      if (editing) formData.append('entity_id', String(editing));
+      if (editing) formData.append('replace', '1');
 
       const res = await axios.post(UPLOAD_API, formData, {
         headers: {

@@ -10,6 +10,8 @@ import AdminHotels from '../components/admin/AdminHotels.jsx';
 import AdminVouchers from '../components/admin/AdminVouchers.jsx';
 import AdminBookings from '../components/admin/AdminBookings.jsx';
 import AdminCategories from '../components/admin/AdminCategories.jsx';
+import AdminReviews from '../components/admin/AdminReviews.jsx';
+import AdminMediaLibrary from '../components/admin/AdminMediaLibrary.jsx';
 import NotificationSender from '../components/NotificationSender.jsx';
 import {
   LayoutDashboard,
@@ -20,6 +22,8 @@ import {
   Compass,
   Ticket,
   FileText,
+  Star,
+  Image,
   Menu,
   X,
   TrendingUp,
@@ -194,6 +198,8 @@ export default function AdminDashboard() {
     { id: 'overview', label: 'Tổng quan', icon: LayoutDashboard },
     { id: 'bookings', label: 'Đặt chỗ', icon: FileText },
     { id: 'users', label: 'Người dùng', icon: Users },
+    { id: 'reviews', label: 'Đánh giá', icon: Star },
+    { id: 'media-library', label: 'Thư viện hình ảnh', icon: Image },
     { id: 'hotels', label: 'Khách sạn', icon: Hotel },
     { id: 'flights', label: 'Chuyến bay', icon: Plane },
     { id: 'cars', label: 'Xe cho thuê', icon: Car },
@@ -216,7 +222,12 @@ export default function AdminDashboard() {
           headers: { Authorization: `Bearer ${token}` }
         });
 
-        setStats(response.data.stats);
+        if (response.data.stats) {
+          setStats(prev => ({
+            ...prev,
+            ...response.data.stats
+          }));
+        }
         setRecentActivity(response.data.recentActivity || []);
       } catch (error) {
         console.error('Error fetching stats:', error);
@@ -330,7 +341,7 @@ export default function AdminDashboard() {
                   {menuItems.find(item => item.id === activeTab)?.label || 'Tổng quan'}
                 </h2>
                 <p className="text-gray-600 text-sm">
-                  Quản lý và theo dõi {menuItems.find(item => item.id === activeTab)?.label.toLowerCase()}
+                  Quản lý và theo dõi {(menuItems.find(item => item.id === activeTab)?.label || '').toLowerCase()}
                 </p>
               </div>
               <div className="text-right">
@@ -364,7 +375,7 @@ export default function AdminDashboard() {
                   <div className="lg:col-span-2">
                     <StatCard
                       title="Tổng đặt chỗ"
-                      value={stats.totalBookings.toLocaleString()}
+                      value={(stats?.totalBookings || 0).toLocaleString()}
                       icon={ShoppingBag}
                       trend="+12.5% so với tháng trước"
                       color="bg-gradient-to-br from-blue-500 to-blue-600"
@@ -373,7 +384,7 @@ export default function AdminDashboard() {
                   <div className="lg:col-span-2">
                     <StatCard
                       title="Người dùng"
-                      value={stats.totalUsers.toLocaleString()}
+                      value={(stats?.totalUsers || 0).toLocaleString()}
                       icon={Users}
                       trend="+8.2% so với tháng trước"
                       color="bg-gradient-to-br from-green-500 to-green-600"
@@ -382,7 +393,7 @@ export default function AdminDashboard() {
                   <div className="lg:col-span-2">
                     <StatCard
                       title="Dịch vụ hoạt động"
-                      value={stats.activeServices.toLocaleString()}
+                      value={(stats?.activeServices || 0).toLocaleString()}
                       icon={Activity}
                       trend="+5 dịch vụ mới"
                       color="bg-gradient-to-br from-orange-500 to-orange-600"
@@ -391,7 +402,7 @@ export default function AdminDashboard() {
                   <div className="lg:col-span-6">
                     <StatCard
                       title="Doanh thu"
-                      value={formatCurrency(stats.totalRevenue)}
+                      value={formatCurrency(stats?.totalRevenue || 0)}
                       icon={DollarSign}
                       trend="+15.3% so với tháng trước"
                       color="bg-gradient-to-br from-purple-500 to-purple-600"
@@ -476,6 +487,8 @@ export default function AdminDashboard() {
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
               {activeTab === 'bookings' && <AdminBookings />}
               {activeTab === 'users' && <AdminUsers />}
+              {activeTab === 'reviews' && <AdminReviews />}
+              {activeTab === 'media-library' && <AdminMediaLibrary />}
               {activeTab === 'hotels' && <AdminHotels />}
               {activeTab === 'flights' && <AdminFlights />}
               {activeTab === 'cars' && <AdminCars />}

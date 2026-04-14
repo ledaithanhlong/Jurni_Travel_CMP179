@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { clearCache } from '../middlewares/cache.js';
 
 const { Category } = db;
 
@@ -17,6 +18,7 @@ export const createCategory = async (req, res) => {
   try {
     const { name, slug, icon, description } = req.body;
     const category = await Category.create({ name, slug, icon, description });
+    clearCache('/categories');
     res.status(201).json(category);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -31,6 +33,7 @@ export const updateCategory = async (req, res) => {
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     await category.update({ name, slug, icon, description, is_active });
+    clearCache('/categories');
     res.json(category);
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -44,6 +47,7 @@ export const deleteCategory = async (req, res) => {
     if (!category) return res.status(404).json({ error: 'Category not found' });
 
     await category.destroy();
+    clearCache('/categories');
     res.json({ message: 'Category deleted successfully' });
   } catch (error) {
     res.status(500).json({ error: error.message });

@@ -1,5 +1,48 @@
 import db from '../models/index.js';
 
+const normalizeBookingForFrontend = (bookingDoc, reviewDoc) => {
+    const b = bookingDoc?.toObject ? bookingDoc.toObject({ virtuals: true }) : bookingDoc;
+
+    const hotel = b.hotel_id && typeof b.hotel_id === 'object' ? b.hotel_id : null;
+    const flight = b.flight_id && typeof b.flight_id === 'object' ? b.flight_id : null;
+    const car = b.car_id && typeof b.car_id === 'object' ? b.car_id : null;
+    const activity = b.activity_id && typeof b.activity_id === 'object' ? b.activity_id : null;
+
+    let service_type = null;
+    let service_id = null;
+    let service = {};
+
+    if (hotel) {
+        service_type = 'hotel';
+        service_id = hotel._id || hotel.id;
+        service = hotel;
+    } else if (flight) {
+        service_type = 'flight';
+        service_id = flight._id || flight.id;
+        service = flight;
+    } else if (car) {
+        service_type = 'car';
+        service_id = car._id || car.id;
+        service = car;
+    } else if (activity) {
+        service_type = 'activity';
+        service_id = activity._id || activity.id;
+        service = activity;
+    }
+
+    const review = reviewDoc
+        ? (reviewDoc.toObject ? reviewDoc.toObject({ virtuals: true }) : reviewDoc)
+        : null;
+
+    return {
+        ...b,
+        service_type,
+        service_id,
+        service,
+        review,
+    };
+};
+
 export const createBooking = async (req, res, next) => {
     try {
         const userId = req.user?._id;
@@ -38,7 +81,8 @@ export const getBooking = async (req, res, next) => {
             return res.status(403).json({ error: 'Forbidden' });
         }
 
-        return res.json(row);
+        const review = await db.Review.findOne({ booking_id: String(row._id) });
+        return res.json(normalizeBookingForFrontend(row, review));
     } catch (e) {
         return next(e);
     }
@@ -59,7 +103,12 @@ export const getAllBookings = async (req, res, next) => {
             .populate('car_id')
             .populate('activity_id');
 
-        return res.json(rows);
+        const bookingIds = rows.map((b) => String(b._id));
+        const reviews = await db.Review.find({ booking_id: { $in: bookingIds } }).lean();
+        const reviewByBookingId = new Map(reviews.map((r) => [String(r.booking_id), r]));
+
+        const normalized = rows.map((b) => normalizeBookingForFrontend(b, reviewByBookingId.get(String(b._id)) || null));
+        return res.json(normalized);
     } catch (e) {
         return next(e);
     }

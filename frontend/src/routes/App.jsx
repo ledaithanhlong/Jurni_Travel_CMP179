@@ -36,7 +36,7 @@ const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const NavUserSection = () => {
   const { user } = useUser();
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim());
-  const isAdmin = user?.primaryEmailAddress?.emailAddress && adminEmails.includes(user.primaryEmailAddress.emailAddress);
+  const isAdmin = (user?.primaryEmailAddress?.emailAddress && adminEmails.includes(user.primaryEmailAddress.emailAddress)) || user?.publicMetadata?.role === 'admin';
 
   return (
     <>
@@ -128,7 +128,7 @@ const AdminOnly = ({ children, clerkEnabled }) => {
   if (!clerkEnabled) return <Navigate to="/" replace />;
   const { user, isLoaded } = useUser();
   const adminEmails = (import.meta.env.VITE_ADMIN_EMAILS || '').split(',').map(e => e.trim());
-  const isAdmin = user?.primaryEmailAddress?.emailAddress && adminEmails.includes(user.primaryEmailAddress.emailAddress);
+  const isAdmin = (user?.primaryEmailAddress?.emailAddress && adminEmails.includes(user.primaryEmailAddress.emailAddress)) || user?.publicMetadata?.role === 'admin';
 
   if (!isLoaded) return <div>Loading...</div>;
   if (!isAdmin) return <Navigate to="/" replace />;
@@ -209,6 +209,7 @@ function SyncUser() {
 }
 
 export default function App({ clerkEnabled }) {
+  const location = useLocation();
   return (
     <div className="flex flex-col min-h-screen bg-white">
       <Nav clerkEnabled={clerkEnabled} />

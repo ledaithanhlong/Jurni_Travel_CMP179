@@ -20,7 +20,7 @@ export default (sequelize, DataTypes) => {
     Activity.hasMany(models.Booking, { foreignKey: 'activity_id', as: 'bookings' });
     Activity.hasMany(models.ActivityMedia, { foreignKey: 'activity_id', as: 'media' });
     Activity.belongsToMany(models.Category, {
-      through: 'ActivityCategories',
+      through: models.ActivityCategory,
       foreignKey: 'activity_id',
       otherKey: 'category_id',
       as: 'categories'

@@ -13,7 +13,7 @@ export default (sequelize, DataTypes) => {
 
   Category.associate = (models) => {
     Category.belongsToMany(models.Activity, {
-      through: 'ActivityCategories',
+      through: models.ActivityCategory,
       foreignKey: 'category_id',
       otherKey: 'activity_id',
       as: 'activities'

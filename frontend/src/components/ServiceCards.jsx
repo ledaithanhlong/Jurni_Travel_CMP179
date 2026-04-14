@@ -101,8 +101,13 @@ export function ActivityCard({ activity, onClick }) {
                 <div className="absolute top-4 left-4 flex flex-wrap gap-1">
                     {activity.categories && activity.categories.length > 0 ? (
                         activity.categories.map(cat => (
-                            <div key={cat.id} className="badge-primary shadow-md text-[10px] px-2 py-0.5">
-                                {cat.icon} {cat.name}
+                            <div key={cat.id} className="badge-primary shadow-md text-[10px] px-2 py-0.5 flex items-center gap-1">
+                                {cat.icon && (typeof cat.icon === 'string' && (cat.icon.startsWith('http') || cat.icon.startsWith('/')) ? (
+                                    <img src={cat.icon} alt={cat.name} className="w-3 h-3 rounded-full object-cover inline-block" />
+                                ) : (
+                                    <span>{cat.icon}</span>
+                                ))}
+                                <span>{cat.name}</span>
                             </div>
                         ))
                     ) : (

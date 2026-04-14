@@ -25,7 +25,7 @@ export const listActivities = async (req, res, next) => {
         [{ model: db.ActivityMedia, as: 'media' }, 'createdAt', 'ASC'],
       ]
     });
-    res.json(rows);
+    res.json(rows.map(r => r.toJSON()));
   } catch (e) { next(e); }
 };
 

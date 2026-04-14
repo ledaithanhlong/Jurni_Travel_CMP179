@@ -500,7 +500,11 @@ export default function AdminActivities() {
                                 : 'bg-gray-100 text-gray-600 hover:bg-blue-50 hover:text-blue-600'
                             }`}
                           >
-                            {cat.icon && <span className="mr-1">{cat.icon}</span>}
+                            {cat.icon && (typeof cat.icon === 'string' && (cat.icon.startsWith('http') || cat.icon.startsWith('/')) ? (
+                              <img src={cat.icon} alt={cat.name} className="w-3 h-3 rounded-full object-cover inline-block mr-1" />
+                            ) : (
+                              <span className="mr-1">{cat.icon}</span>
+                            ))}
                             {cat.name}
                           </button>
                         ))

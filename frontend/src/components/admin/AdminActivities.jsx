@@ -16,6 +16,7 @@ const TABS = [
   { id: 'basic', label: '📋 Cơ bản' },
   { id: 'itinerary', label: '🗓️ Lịch trình' },
   { id: 'pricing', label: '💰 Giá gói' },
+  { id: 'gallery', label: '🖼️ Hình ảnh & Video' },
   { id: 'policy', label: '📜 Chính sách' },
   { id: 'terms', label: '📝 Điều khoản' },
 ];
@@ -28,6 +29,8 @@ const emptyForm = {
   category: '',
   description: '',
   image_url: '',
+  images: [],          // Album ảnh
+  video_url: '',       // Link video
   highlights: [],
   includes: [],
   meeting_point: '',
@@ -41,9 +44,12 @@ const emptyForm = {
 // ─── helpers ────────────────────────────────────────────────────────────────
 const safeJson = (val) => {
   if (!val) return null;
-  if (Array.isArray(val)) return val.length ? val : null;
+  if (Array.isArray(val)) return val;
   if (typeof val === 'object') return val;
-  try { return JSON.parse(val); } catch { return null; }
+  try { 
+    const parsed = JSON.parse(val);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch { return null; }
 };
 
 export default function AdminActivities() {
@@ -84,21 +90,25 @@ export default function AdminActivities() {
     }
   };
 
-  const handleImageUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleImagesUpload = async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
     setUploading(true);
     try {
       const token = await getToken();
-      const formData = new FormData();
-      formData.append('file', file);
-      const res = await axios.post(UPLOAD_API, formData, {
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data.url) setForm(prev => ({ ...prev, image_url: res.data.url }));
+      const uploadedUrls = [];
+      for (const file of files) {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await axios.post(UPLOAD_API, formData, {
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'multipart/form-data' }
+        });
+        if (res.data.url) uploadedUrls.push(res.data.url);
+      }
+      setForm(prev => ({ ...prev, images: [...prev.images, ...uploadedUrls] }));
     } catch (error) {
-      console.error('Error uploading image:', error);
-      alert('Lỗi khi upload hình ảnh');
+      console.error('Error uploading images:', error);
+      alert('Lỗi khi upload album ảnh');
     } finally {
       setUploading(false);
     }
@@ -186,6 +196,8 @@ export default function AdminActivities() {
         category: form.category || null,
         description: form.description || null,
         image_url: form.image_url || null,
+        images: form.images.length > 0 ? form.images : null,
+        video_url: form.video_url || null,
         includes: form.includes.length > 0 ? form.includes : null,
         meeting_point: form.meeting_point || null,
         policies: Object.values(form.policies).some(v => v) ? form.policies : null,
@@ -221,6 +233,8 @@ export default function AdminActivities() {
       category: activity.category || '',
       description: activity.description || '',
       image_url: activity.image_url || '',
+      images: Array.isArray(activity.images) ? activity.images : [],
+      video_url: activity.video_url || '',
       highlights: Array.isArray(activity.highlights) ? activity.highlights : [],
       includes: Array.isArray(activity.includes) ? activity.includes : [],
       meeting_point: activity.meeting_point || '',
@@ -540,6 +554,51 @@ export default function AdminActivities() {
                         )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ════════ TAB: HÌNH ẢNH & VIDEO ════════ */}
+              {activeTab === 'gallery' && (
+                <div className="space-y-6">
+                  <div className="border-b pb-6">
+                    <h4 className="font-bold text-lg mb-4">🖼️ Album hình ảnh</h4>
+                    <div className="grid grid-cols-2 gap-4 mb-4">
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block uppercase font-bold">Thêm ảnh vào album</label>
+                        <input type="file" multiple onChange={handleImagesUpload} accept="image/*" className="w-full border rounded-xl px-3 py-2 text-sm" disabled={uploading} />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-400 mb-1 block uppercase font-bold">Thêm URL ảnh</label>
+                        <div className="flex gap-2">
+                           <input type="text" id="new_img_url" className="flex-1 border rounded-xl px-3 py-2 text-sm" placeholder="https://..." />
+                           <button type="button" onClick={() => {
+                             const val = document.getElementById('new_img_url').value;
+                             if(val) { setForm(p => ({...p, images: [...p.images, val]})); document.getElementById('new_img_url').value = ''; }
+                           }} className="bg-blue-600 text-white px-4 rounded-xl font-bold">+</button>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="grid grid-cols-4 md:grid-cols-6 gap-3">
+                      {form.images && form.images.map((img, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group border-2 border-gray-100">
+                           <img src={img} className="w-full h-full object-cover" />
+                           <button type="button" onClick={() => setForm(p => ({...p, images: p.images.filter((_, i) => i !== idx)}))} 
+                             className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition shadow-lg">×</button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="font-bold text-lg mb-4">🎥 Video giới thiệu</h4>
+                    <div className="bg-gray-50 p-4 rounded-2xl border-2 border-dashed border-gray-200">
+                      <label className="block text-sm font-bold text-gray-700 mb-2">Đường dẫn Video (YouTube)</label>
+                      <input type="text" value={form.video_url} onChange={e => setForm({ ...form, video_url: e.target.value })}
+                        className="w-full border rounded-xl px-4 py-3 text-sm focus:border-blue-500 outline-none" placeholder="VD: https://www.youtube.com/watch?v=... hoặc https://youtu.be/..." />
+                      <p className="text-[10px] text-gray-400 mt-2 italic font-medium">* Hệ thống hỗ trợ hiển thị video trực tiếp từ YouTube.</p>
+                    </div>
                   </div>
                 </div>
               )}

@@ -5,6 +5,30 @@ import { useAuth } from '@clerk/clerk-react';
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Helper to safely parse JSON field
+function safeArr(val) {
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch { return []; }
+  }
+  return [];
+}
+
+// Helper to safely parse JSON object
+function safeObj(val) {
+  if (val && typeof val === 'object' && !Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return (parsed && typeof parsed === 'object') ? parsed : {};
+    } catch { return {}; }
+  }
+  return {};
+}
+
 export default function HotelDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -124,10 +148,18 @@ export default function HotelDetail() {
     ? Math.ceil((new Date(booking.checkOut) - new Date(booking.checkIn)) / (1000 * 60 * 60 * 24))
     : 0;
 
+  // Data processing with safety
+  const albumImages = safeArr(hotel.images);
+  const amenitiesData = safeArr(hotel.amenities);
+  const roomTypes = safeArr(hotel.room_types);
+  const nearbyAttractions = safeArr(hotel.nearby_attractions);
+  const publicTransport = safeArr(hotel.public_transport);
+  const policies = safeObj(hotel.policies);
+
   // Images
   const allImages = [];
   if (hotel.image_url) allImages.push(hotel.image_url);
-  if (Array.isArray(hotel.images)) hotel.images.forEach(img => { if (img && !allImages.includes(img)) allImages.push(img); });
+  albumImages.forEach(img => { if (img && !allImages.includes(img)) allImages.push(img); });
   const displayImage = allImages[selectedImageIndex] || hotel.image_url || 'https://via.placeholder.com/800x400';
 
   // Amenities
@@ -139,17 +171,7 @@ export default function HotelDetail() {
   if (hotel.has_gym) amenitiesList.push('Phòng gym');
   if (hotel.has_spa) amenitiesList.push('Spa');
   if (hotel.has_breakfast) amenitiesList.push('Bữa sáng');
-  if (Array.isArray(hotel.amenities)) {
-    hotel.amenities.forEach(a => { if (a && !amenitiesList.includes(a)) amenitiesList.push(a); });
-  }
-
-  // Policies
-  let policies = hotel.policies;
-  if (typeof policies === 'string') { try { policies = JSON.parse(policies); } catch { policies = null; } }
-
-  const nearbyAttractions = Array.isArray(hotel.nearby_attractions) ? hotel.nearby_attractions : [];
-  const publicTransport = Array.isArray(hotel.public_transport) ? hotel.public_transport : [];
-  const roomTypes = Array.isArray(hotel.room_types) ? hotel.room_types : [];
+  amenitiesData.forEach(a => { if (a && !amenitiesList.includes(a)) amenitiesList.push(a); });
 
   const tabs = [
     { id: 'info', label: 'Thông tin' },
@@ -396,11 +418,13 @@ export default function HotelDetail() {
                       <h3 className="text-xl font-bold text-gray-900 mb-6">Thư viện hình ảnh</h3>
                       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         {/* Kiểm tra mảng ảnh có dữ liệu không, nếu không thì dùng ảnh mặc định */}
-                        {(hotel.images && hotel.images.length > 0
-                          ? hotel.images
-                          : [hotel.image_url, hotel.image_url, hotel.image_url, hotel.image_url].filter(Boolean)
+                        {(allImages.length > 0
+                          ? allImages
+                          : [hotel.image_url].filter(Boolean)
                         ).map((img, idx) => (
-                          <div key={idx} className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                          <div key={idx} 
+                            onClick={() => setSelectedImageIndex(allImages.indexOf(img) !== -1 ? allImages.indexOf(img) : 0)}
+                            className="group relative aspect-[4/3] overflow-hidden rounded-2xl bg-gray-100 border border-gray-100 shadow-sm transition-all hover:shadow-md cursor-pointer">
                             <img
                               src={img}
                               alt={`Gallery ${idx}`}
@@ -409,6 +433,7 @@ export default function HotelDetail() {
                                 e.target.src = 'https://via.placeholder.com/800x600?text=Jurni+Travel';
                               }}
                             />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                           </div>
                         ))}
                       </div>
@@ -418,11 +443,11 @@ export default function HotelDetail() {
                     <div>
                       <h3 className="text-xl font-bold text-gray-900 mb-6">Video giới thiệu</h3>
                       <div className="aspect-video w-full overflow-hidden rounded-3xl bg-gray-900 shadow-xl border-4 border-white overflow-hidden">
-                        {(hotel.video_url && hotel.video_url.trim() !== "") ? (
+                        {(hotel.video_url && typeof hotel.video_url === 'string' && hotel.video_url.trim() !== "") ? (
                           <iframe
                             className="w-full h-full"
                             src={hotel.video_url.includes('youtube.com') || hotel.video_url.includes('youtu.be')
-                              ? hotel.video_url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")
+                              ? hotel.video_url.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/").split('&')[0]
                               : hotel.video_url
                             }
                             title="Hotel Video"

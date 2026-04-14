@@ -24,6 +24,7 @@ export default function ActivitiesPage() {
   // Booking details
   const [tourDate, setTourDate] = useState('');
   const [participants, setParticipants] = useState(1);
+  const [selectedPackage, setSelectedPackage] = useState(null);
 
   const loadData = async () => {
     try {
@@ -79,9 +80,9 @@ export default function ActivitiesPage() {
 
     const cartItem = {
       id: `activity-${activity.id}-${Date.now()}`,
-      name: activity.name,
+      name: selectedPackage ? `${activity.name} - ${selectedPackage.name}` : activity.name,
       type: 'Tour',
-      price: parseFloat(activity.price),
+      price: parseFloat(selectedPackage ? selectedPackage.price : activity.price),
       quantity: participants,
       image: activity.image_url,
       details: {
@@ -89,7 +90,8 @@ export default function ActivitiesPage() {
         location: activity.location,
         duration: activity.duration,
         tour_date: tourDate,
-        participants: participants
+        participants: participants,
+        package: selectedPackage ? selectedPackage.name : null
       }
     };
 
@@ -110,6 +112,7 @@ export default function ActivitiesPage() {
     setParticipants(1);
     setReviews([]);
     setReviewsData({ count: 0, average_rating: 0 });
+    setSelectedPackage(null);
   };
 
   const filteredActivities = rows.filter(act => {
@@ -177,7 +180,11 @@ export default function ActivitiesPage() {
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                   }`}
                 >
-                  <span>{cat.icon}</span>
+                  {cat.icon && (typeof cat.icon === 'string' && (cat.icon.startsWith('http') || cat.icon.startsWith('/')) ? (
+                    <img src={cat.icon} alt={cat.name} className="w-5 h-5 rounded-full object-cover" />
+                  ) : (
+                    <span>{cat.icon}</span>
+                  ))}
                   {cat.name}
                 </button>
               ))}
@@ -230,8 +237,13 @@ export default function ActivitiesPage() {
                 <div className="absolute bottom-6 left-6 right-6">
                    <div className="flex flex-wrap gap-2 mb-3">
                       {selectedActivity.categories?.map(cat => (
-                        <span key={cat.id} className="bg-white/20 backdrop-blur-md text-white border border-white/30 px-3 py-1 rounded-full text-xs font-bold">
-                          {cat.icon} {cat.name}
+                        <span key={cat.id} className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md text-white border border-white/30 px-3 py-1 rounded-full text-xs font-bold">
+                          {cat.icon && (typeof cat.icon === 'string' && (cat.icon.startsWith('http') || cat.icon.startsWith('/')) ? (
+                            <img src={cat.icon} alt={cat.name} className="w-3.5 h-3.5 rounded-full object-cover" />
+                          ) : (
+                            <span>{cat.icon}</span>
+                          ))}
+                          {cat.name}
                         </span>
                       ))}
                    </div>
@@ -272,7 +284,7 @@ export default function ActivitiesPage() {
                    </div>
 
                    {selectedActivity.includes && (
-                     <div>
+                     <div className="mt-8">
                         <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
                            Bao gồm trong tour
                         </h3>
@@ -286,6 +298,55 @@ export default function ActivitiesPage() {
                         </div>
                      </div>
                    )}
+
+                   {/* Itinerary */}
+                   {selectedActivity.itinerary && Array.isArray(selectedActivity.itinerary) && selectedActivity.itinerary.length > 0 && (
+                     <div className="mt-8 border-t pt-8">
+                        <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                           Lịch trình chi tiết
+                        </h3>
+                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-gray-300 before:to-transparent">
+                           {selectedActivity.itinerary.map((day, idx) => (
+                             <div key={idx} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
+                                <div className="flex items-center justify-center w-10 h-10 rounded-full border-4 border-white bg-blue-100 text-blue-600 font-bold shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-sm z-10">
+                                   {idx + 1}
+                                </div>
+                                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-5 rounded-2xl bg-gray-50 border border-gray-100 shadow-sm">
+                                   <div className="flex flex-col">
+                                      <h4 className="font-bold text-gray-900 text-lg mb-1">{day.title || `Ngày ${idx + 1}`}</h4>
+                                      <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-wrap">{day.description}</p>
+                                   </div>
+                                </div>
+                             </div>
+                           ))}
+                        </div>
+                     </div>
+                   )}
+
+                   {/* Policies and Terms */}
+                   <div className="mt-8 border-t pt-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {(selectedActivity.cancellationPolicy || selectedActivity.policies?.cancellationPolicy) && (
+                        <div className="bg-orange-50 rounded-2xl p-5 border border-orange-100 h-full">
+                           <h3 className="text-lg font-bold text-orange-800 mb-3 flex items-center gap-2">
+                              Chính sách hoàn huỷ
+                           </h3>
+                           <p className="text-orange-900/80 text-sm whitespace-pre-wrap leading-relaxed">
+                             {selectedActivity.cancellationPolicy || selectedActivity.policies?.cancellationPolicy}
+                           </p>
+                        </div>
+                      )}
+                      
+                      {(selectedActivity.termsAndConditions || selectedActivity.policies?.termsAndConditions) && (
+                        <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100 h-full">
+                           <h3 className="text-lg font-bold text-blue-800 mb-3 flex items-center gap-2">
+                              Điều khoản & Lưu ý
+                           </h3>
+                           <p className="text-blue-900/80 text-sm whitespace-pre-wrap leading-relaxed">
+                             {selectedActivity.termsAndConditions || selectedActivity.policies?.termsAndConditions}
+                           </p>
+                        </div>
+                      )}
+                   </div>
 
                    {/* Reviews Section */}
                    <div className="mt-8 border-t pt-8">
@@ -344,10 +405,31 @@ export default function ActivitiesPage() {
 
                 <div className="space-y-6">
                    <div className="bg-white border-2 border-blue-600 rounded-3xl p-6 shadow-xl sticky top-24">
+                      {selectedActivity.packages && Array.isArray(selectedActivity.packages) && selectedActivity.packages.length > 0 && (
+                        <div className="mb-6 border-b pb-6">
+                           <label className="block text-xs font-bold text-gray-500 mb-3 uppercase">Chọn gói dịch vụ</label>
+                           <div className="space-y-3">
+                              {selectedActivity.packages.map((pkg, idx) => (
+                                <div 
+                                  key={idx} 
+                                  onClick={() => setSelectedPackage(pkg)}
+                                  className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedPackage === pkg ? 'border-blue-600 bg-blue-50 shadow-md scale-[1.02]' : 'border-gray-100 hover:border-gray-300 bg-gray-50'}`}
+                                >
+                                   <div className="flex justify-between items-center mb-1">
+                                      <span className="font-bold text-gray-900">{pkg.name}</span>
+                                      <span className="font-bold text-blue-600">{formatPrice(pkg.price)} đ</span>
+                                   </div>
+                                   {pkg.description && <p className="text-xs text-gray-500 mt-1">{pkg.description}</p>}
+                                </div>
+                              ))}
+                           </div>
+                        </div>
+                      )}
+
                       <div className="mb-6">
                         <p className="text-gray-500 text-sm font-bold uppercase tracking-wider mb-1">Giá từ</p>
                         <div className="flex items-baseline gap-2">
-                          <span className="text-4xl font-extrabold text-blue-600">{formatPrice(selectedActivity.price)}</span>
+                          <span className="text-4xl font-extrabold text-blue-600">{formatPrice(selectedPackage ? selectedPackage.price : selectedActivity.price)}</span>
                           <span className="text-gray-500 font-bold">VND</span>
                         </div>
                       </div>
@@ -386,11 +468,11 @@ export default function ActivitiesPage() {
                       <div className="border-t pt-6 mb-6">
                          <div className="flex justify-between items-center mb-1">
                             <span className="text-gray-500 font-medium">Tạm tính</span>
-                            <span className="font-bold">{formatPrice(selectedActivity.price * participants)} VND</span>
+                            <span className="font-bold">{formatPrice((selectedPackage ? selectedPackage.price : selectedActivity.price) * participants)} VND</span>
                          </div>
                          <div className="flex justify-between items-center text-xl font-extrabold text-gray-900 mt-4">
                             <span>Tổng cộng</span>
-                            <span className="text-blue-600">{formatPrice(selectedActivity.price * participants)} VND</span>
+                            <span className="text-blue-600">{formatPrice((selectedPackage ? selectedPackage.price : selectedActivity.price) * participants)} VND</span>
                          </div>
                       </div>
 

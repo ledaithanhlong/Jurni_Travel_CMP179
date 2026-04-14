@@ -1,4 +1,5 @@
 import db from '../models/index.js';
+import { clearCache } from '../middlewares/cache.js';
 
 const activityMediaInclude = {
   model: db.ActivityMedia,
@@ -39,6 +40,7 @@ export const createActivity = async (req, res, next) => {
     }
     
     await transaction.commit();
+    clearCache('/activities');
     res.status(201).json(created);
   } catch (e) {
     await transaction.rollback();
@@ -63,6 +65,7 @@ export const updateActivity = async (req, res, next) => {
     }
     
     await transaction.commit();
+    clearCache('/activities');
     res.json(row);
   } catch (e) {
     await transaction.rollback();
@@ -75,6 +78,7 @@ export const deleteActivity = async (req, res, next) => {
     const row = await db.Activity.findByPk(req.params.id);
     if (!row) return res.status(404).json({ error: 'Not found' });
     await row.destroy();
+    clearCache('/activities');
     res.json({ ok: true });
   } catch (e) { next(e); }
 };
@@ -143,6 +147,7 @@ export const createActivityMedia = async (req, res, next) => {
     }, { transaction });
 
     await transaction.commit();
+    clearCache(`/activities/${activityId}/media`);
     res.status(201).json(created);
   } catch (e) {
     await transaction.rollback();
@@ -209,6 +214,7 @@ export const updateActivityMedia = async (req, res, next) => {
       }
     }
 
+    clearCache(`/activities/${activityId}/media`);
     res.json(item);
   } catch (e) {
     await transaction.rollback();
@@ -238,6 +244,7 @@ export const deleteActivityMedia = async (req, res, next) => {
       });
     } catch {
     }
+    clearCache(`/activities/${activityId}/media`);
     res.json({ ok: true });
   } catch (e) { next(e); }
 };
@@ -281,6 +288,7 @@ export const reorderActivityMedia = async (req, res, next) => {
     });
 
     await transaction.commit();
+    clearCache(`/activities/${activityId}/media`);
     res.json(updated);
   } catch (e) {
     await transaction.rollback();
@@ -310,6 +318,7 @@ export const setActivityMediaThumbnail = async (req, res, next) => {
 
     await item.update({ is_thumbnail: true }, { transaction });
     await transaction.commit();
+    clearCache(`/activities/${activityId}/media`);
     res.json(item);
   } catch (e) {
     await transaction.rollback();

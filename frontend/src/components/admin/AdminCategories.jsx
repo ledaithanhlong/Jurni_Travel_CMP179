@@ -213,8 +213,16 @@ export default function AdminCategories() {
                 <tr key={cat.id} className="group hover:bg-blue-50/20 transition-colors">
                   <td className="px-8 py-6">
                     <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center text-2xl group-hover:scale-110 transition-transform duration-300">
-                        {cat.icon || '📁'}
+                      <div className="w-14 h-14 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center group-hover:scale-110 transition-transform duration-300 overflow-hidden shrink-0">
+                        {cat.icon ? (
+                          cat.icon.includes('http') || cat.icon.includes('/') ? (
+                            <img src={cat.icon} alt={cat.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-2xl">{cat.icon}</span>
+                          )
+                        ) : (
+                          <span className="text-2xl">📁</span>
+                        )}
                       </div>
                       <div>
                         <div className="font-black text-gray-900 leading-none">{cat.name}</div>

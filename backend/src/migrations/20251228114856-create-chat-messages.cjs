@@ -1,7 +1,8 @@
 'use strict';
 
 /** @type {import('sequelize-cli').Migration} */
-export async function up(queryInterface, Sequelize) {
+module.exports = {
+  up: async function(queryInterface, Sequelize) {
   await queryInterface.createTable('chat_messages', {
     id: {
       type: Sequelize.INTEGER,
@@ -40,9 +41,10 @@ export async function up(queryInterface, Sequelize) {
 
   // Add index for faster queries
   await queryInterface.addIndex('chat_messages', ['conversation_id']);
-}
+  },
 
-export async function down(queryInterface, Sequelize) {
-  await queryInterface.dropTable('chat_messages');
-}
+  down: async function(queryInterface, Sequelize) {
+    await queryInterface.dropTable('chat_messages');
+  }
+};
 

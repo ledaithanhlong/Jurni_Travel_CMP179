@@ -1,7 +1,8 @@
 'use strict';
 
 /** @type {import('sequelize-cli').Migration} */
-export async function up(queryInterface, Sequelize) {
+module.exports = {
+  up: async function(queryInterface, Sequelize) {
   await queryInterface.createTable('chat_conversations', {
     id: {
       type: Sequelize.INTEGER,
@@ -52,9 +53,10 @@ export async function up(queryInterface, Sequelize) {
       defaultValue: Sequelize.literal('CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP'),
     },
   });
-}
+  },
 
-export async function down(queryInterface, Sequelize) {
-  await queryInterface.dropTable('chat_conversations');
-}
+  down: async function(queryInterface, Sequelize) {
+    await queryInterface.dropTable('chat_conversations');
+  }
+};
 
